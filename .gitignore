@@ -1,3 +1,50 @@
-node_modules
-.turbo
-dist
+# Dependencies
+node_modules/
+.npm/
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Turbo
+.turbo/
+
+# Drizzle
+drizzle/meta/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Coverage
+coverage/
+*.lcov
+
+# Misc
+*.tsbuildinfo
