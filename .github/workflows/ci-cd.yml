@@ -29,13 +29,13 @@ jobs:
         run: npm ci
 
       - name: Run linter
-        run: npm run lint --if-present
+        run: npx turbo run lint --filter=backend --filter=web
 
       - name: Run tests
-        run: npm test --if-present
+        run: npx turbo run test --filter=backend --filter=web
 
       - name: Build
-        run: npm run build
+        run: npx turbo run build --filter=backend --filter=web
 
   build-and-push:
     needs: test
@@ -61,8 +61,8 @@ jobs:
           ECR_REPOSITORY: backend
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./apps/backend
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
