@@ -1,10 +1,12 @@
-import { Injectable, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { join } from "path";
 import * as schema from "./schema";
 
 @Injectable()
-export class DrizzleService implements OnModuleDestroy {
+export class DrizzleService implements OnModuleInit, OnModuleDestroy {
   private client: postgres.Sql;
   db: ReturnType<typeof drizzle>;
 
@@ -16,6 +18,12 @@ export class DrizzleService implements OnModuleDestroy {
 
     this.client = postgres(databaseUrl);
     this.db = drizzle(this.client, { schema });
+  }
+
+  async onModuleInit() {
+    await migrate(this.db, {
+      migrationsFolder: join(process.cwd(), "apps/backend/drizzle/migrations"),
+    });
   }
 
   async onModuleDestroy() {

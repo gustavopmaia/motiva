@@ -8,7 +8,7 @@ import { HealthController } from "./infrastructure/http/health.controller";
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [".env"],
+      envFilePath: ["apps/backend/.env", ".env"],
     }),
     AuthModule,
   ],
