@@ -16,8 +16,7 @@ COPY apps/backend/tsconfig*.json apps/backend/
 COPY apps/backend/drizzle.config.ts apps/backend/
 COPY packages packages
 
-RUN mkdir -p apps/backend/drizzle/migrations
-COPY apps/backend/drizzle apps/backend/drizzle/
+COPY apps/backend/drizzle apps/backend/drizzle
 
 RUN npm run build --workspace=backend && npm prune --omit=dev
 
