@@ -1,5 +1,5 @@
 function App() {
-  return <></>;
+  return <h1>Motiva - NyxDev</h1>;
 }
 
 export default App;
