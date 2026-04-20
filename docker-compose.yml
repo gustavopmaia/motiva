@@ -1,19 +1,9 @@
 services:
-  nginx:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     env_file: ./apps/backend/.env
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
     restart: unless-stopped
