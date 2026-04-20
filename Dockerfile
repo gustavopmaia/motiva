@@ -40,4 +40,4 @@ USER node
 
 EXPOSE 3000
 
-CMD ["node", "apps/backend/dist/main.js"]
+CMD ["node", "apps/backend/dist/src/main.js"]
