@@ -1,6 +1,22 @@
-version: "3.8"
-
 services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: backend-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/backend
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
   db:
     image: postgres:17
     container_name: backend-db
@@ -10,6 +26,11 @@ services:
       POSTGRES_DB: backend
     ports:
       - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d backend"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped

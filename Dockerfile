@@ -1,29 +1,40 @@
-FROM node:20-alpine AS builder
+FROM node:20-bookworm-slim AS base
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY turbo.json ./
-COPY tsconfig*.json ./
-COPY apps ./apps
-COPY packages ./packages
+ENV HUSKY=0
+
+FROM base AS deps
+
+COPY package.json package-lock.json ./
+COPY apps/backend/package.json apps/backend/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/types/package.json packages/types/package.json
 
 RUN npm ci
+
+FROM deps AS builder
+
+COPY apps/backend apps/backend
+COPY packages packages
+
 RUN npm run build --workspace=backend
 
-FROM node:20-alpine AS runner
+FROM base AS runner
 
-WORKDIR /app
+ENV NODE_ENV=production
 
-RUN addgroup -S nodejs && adduser -S nodejs -G nodejs
-RUN apk add --no-cache openssl
+COPY package.json package-lock.json ./
+COPY apps/backend/package.json apps/backend/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/types/package.json packages/types/package.json
 
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps ./apps
-COPY --from=builder /app/packages ./packages
+RUN npm ci --omit=dev --workspace=backend --include-workspace-root=false \
+  && npm cache clean --force
 
-USER nodejs
+COPY --from=builder /app/apps/backend/dist apps/backend/dist
+
+USER node
 
 EXPOSE 3000
 
