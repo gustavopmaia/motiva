@@ -5,7 +5,13 @@ import { DrizzleService } from "./infrastructure/database/drizzle.service";
 import { HealthController } from "./infrastructure/http/health.controller";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: [".env"],
+    }),
+    AuthModule,
+  ],
   controllers: [HealthController],
   providers: [DrizzleService],
   exports: [DrizzleService],
