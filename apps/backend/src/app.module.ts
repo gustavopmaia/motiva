@@ -1,8 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./auth.module";
-import { DrizzleService } from "./infrastructure/database/drizzle.service";
-import { HealthController } from "./infrastructure/http/health.controller";
+import { DrizzleService } from "@infrastructure/database/drizzle.service";
+import { HealthController } from "@infrastructure/http/health.controller";
 
 @Module({
   imports: [

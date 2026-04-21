@@ -1,5 +1,5 @@
 import { Controller, Post, Body, BadRequestException } from "@nestjs/common";
-import { RegisterUseCase } from "../../domain/use-cases/register.use-case";
+import { RegisterUseCase } from "@domain/use-cases/register.use-case";
 
 @Controller("auth")
 export class AuthController {

@@ -1,4 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
@@ -10,12 +11,8 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
   private client: postgres.Sql;
   db: ReturnType<typeof drizzle>;
 
-  constructor() {
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl) {
-      throw new Error("DATABASE_URL is required");
-    }
-
+  constructor(private readonly config: ConfigService) {
+    const databaseUrl = this.config.getOrThrow<string>("DATABASE_URL");
     this.client = postgres(databaseUrl);
     this.db = drizzle(this.client, { schema });
   }

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { IUserRepository } from "../../domain/repositories/user.repository";
-import { User } from "../../domain/entities/user.entity";
+import { IUserRepository } from "@domain/repositories/user.repository";
+import { User } from "@domain/entities/user.entity";
 import * as argon2 from "argon2";
 import { randomUUID } from "crypto";
 

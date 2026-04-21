@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { eq } from "drizzle-orm";
-import { IUserRepository } from "src/domain/repositories/user.repository";
-import { User } from "src/domain/entities/user.entity";
+import { IUserRepository } from "@domain/repositories/user.repository";
+import { User } from "@domain/entities/user.entity";
 import { DrizzleService } from "../drizzle.service";
 import { users } from "../schema";
 
