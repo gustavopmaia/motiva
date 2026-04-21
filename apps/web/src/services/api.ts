@@ -1,45 +1,20 @@
-const BASE_URL = import.meta.env.VITE_API_URL;
+import axios from "axios";
 
-type RequestOptions = Omit<RequestInit, "body"> & {
-  body?: unknown;
-};
+const client = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  headers: { "Content-Type": "application/json" },
+});
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, headers, ...rest } = options;
-
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...rest,
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
-  if (!response.ok) {
-    throw new Error(`API error ${response.status}: ${response.statusText}`);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return response.json() as Promise<T>;
+async function request<T>(path: string, method: string, body?: unknown): Promise<T> {
+  const response = await client.request<T>({ url: path, method, data: body });
+  return response.data;
 }
 
+export const fetcher = <T>(path: string): Promise<T> => request<T>(path, "GET");
+
 export const api = {
-  get: <T>(path: string, options?: RequestOptions) =>
-    request<T>(path, { method: "GET", ...options }),
-
-  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>(path, { method: "POST", body, ...options }),
-
-  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>(path, { method: "PUT", body, ...options }),
-
-  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>(path, { method: "PATCH", body, ...options }),
-
-  delete: <T>(path: string, options?: RequestOptions) =>
-    request<T>(path, { method: "DELETE", ...options }),
+  post: <T>(path: string, body?: unknown) => request<T>(path, "POST", body),
+  put: <T>(path: string, body?: unknown) => request<T>(path, "PUT", body),
+  patch: <T>(path: string, body?: unknown) => request<T>(path, "PATCH", body),
+  delete: <T>(path: string) => request<T>(path, "DELETE"),
 };
