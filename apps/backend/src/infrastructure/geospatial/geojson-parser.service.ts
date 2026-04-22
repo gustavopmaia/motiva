@@ -49,10 +49,14 @@ const ROAD_NAME_PROPERTY_ALIASES = new Set([
   "br",
 ]);
 
+const LABEL_PROPERTY_ALIASES = new Set(["name", "label", "title"]);
+
+const DESCRIPTION_PROPERTY_ALIASES = new Set(["description", "descricao", "desc"]);
+
 @Injectable()
 export class GeoJsonParserService {
   parseMarkers(buffer: Buffer, fileName: string): ParsedKmMarker[] {
-    const fallbackRoadName = this.fallbackRoadName(fileName);
+    const fallbackRoadName = this.inferRoadNameFromFileName(fileName) ?? this.fileLabel(fileName);
 
     return this.readFeatures(buffer)
       .map((feature) => this.parseMarkerFeature(feature, fallbackRoadName))
@@ -60,7 +64,7 @@ export class GeoJsonParserService {
   }
 
   parseMowingFeatures(buffer: Buffer, fileName: string): ParsedMowingFeature[] {
-    const fallbackRoadName = this.fallbackRoadName(fileName);
+    const fallbackRoadName = this.inferRoadNameFromFileName(fileName);
 
     return this.readFeatures(buffer).flatMap((feature) =>
       this.parseMowingFeature(feature, fallbackRoadName),
@@ -104,7 +108,10 @@ export class GeoJsonParserService {
     );
   }
 
-  private parseMarkerFeature(feature: JsonObject, fallbackRoadName: string): ParsedKmMarker | null {
+  private parseMarkerFeature(
+    feature: JsonObject,
+    fallbackRoadName: string | null,
+  ): ParsedKmMarker | null {
     const geometry = this.asRecord(feature.geometry);
 
     if (!geometry || geometry.type !== "Point") {
@@ -118,29 +125,38 @@ export class GeoJsonParserService {
     }
 
     const properties = this.readProperties(feature.properties);
-    const label = this.findPropertyValue(
-      properties,
-      (key) => key === "name" || key === "label" || key === "title",
-    );
+    const label = this.findFeatureLabel(properties);
+    const description = this.findFeatureDescription(properties);
+    const markerText = label ?? description;
     const km =
       this.parseKmNumber(this.findPropertyValue(properties, (key) => this.matchesKmKey(key))) ??
-      this.parseKmNumber(label);
+      this.parseKmNumber(markerText);
 
     if (km === null) {
       return null;
     }
 
+    const roadName =
+      this.findPropertyValue(properties, (key) => this.matchesRoadNameKey(key)) ??
+      this.extractRoadNameFromText(label) ??
+      this.extractRoadNameFromText(description) ??
+      fallbackRoadName;
+
+    if (!roadName) {
+      return null;
+    }
+
     return {
-      roadName:
-        this.findPropertyValue(properties, (key) => this.matchesRoadNameKey(key)) ??
-        this.extractRoadNameFromLabel(label) ??
-        fallbackRoadName,
+      roadName,
       km,
       coordinate,
     };
   }
 
-  private parseMowingFeature(feature: JsonObject, fallbackRoadName: string): ParsedMowingFeature[] {
+  private parseMowingFeature(
+    feature: JsonObject,
+    fallbackRoadName: string | null,
+  ): ParsedMowingFeature[] {
     const geometry = this.asRecord(feature.geometry);
 
     if (!geometry) {
@@ -148,12 +164,12 @@ export class GeoJsonParserService {
     }
 
     const properties = this.readProperties(feature.properties);
-    const label = this.findPropertyValue(
-      properties,
-      (key) => key === "name" || key === "label" || key === "title",
-    );
+    const label = this.findFeatureLabel(properties);
+    const description = this.findFeatureDescription(properties);
     const mowingType =
-      this.findPropertyValue(properties, (key) => this.matchesMowingTypeKey(key)) ?? label;
+      this.findPropertyValue(properties, (key) => this.matchesMowingTypeKey(key)) ??
+      label ??
+      description;
 
     if (!mowingType) {
       return [];
@@ -161,7 +177,8 @@ export class GeoJsonParserService {
 
     const roadName =
       this.findPropertyValue(properties, (key) => this.matchesRoadNameKey(key)) ??
-      this.extractRoadNameFromLabel(label) ??
+      this.extractRoadNameFromText(label) ??
+      this.extractRoadNameFromText(description) ??
       fallbackRoadName;
 
     return this.geometryToWkts(geometry).map((geometryWkt) => ({
@@ -241,14 +258,31 @@ export class GeoJsonParserService {
       return null;
     }
 
-    const match = value.match(/(?:\bkm\b\D*)?(\d+(?:[.,]\d+)?)/i);
+    const match =
+      value.match(/\bkm\b\D*(-?\d+(?:[.,]\d+)?)/i) ?? value.match(/\bkm(-?\d+(?:[.,]\d+)?)/i);
 
-    if (!match) {
+    if (match) {
+      const parsedValue = Number.parseFloat(match[1].replace(",", "."));
+      return Number.isFinite(parsedValue) ? parsedValue : null;
+    }
+
+    const numericMatches = Array.from(value.matchAll(/-?\d+(?:[.,]\d+)?/g));
+    const lastMatch = numericMatches.at(-1)?.[0];
+
+    if (!lastMatch) {
       return null;
     }
 
-    const parsedValue = Number.parseFloat(match[1].replace(",", "."));
+    const parsedValue = Number.parseFloat(lastMatch.replace(",", "."));
     return Number.isFinite(parsedValue) ? parsedValue : null;
+  }
+
+  private findFeatureLabel(properties: Record<string, string>): string | null {
+    return this.findPropertyValue(properties, (key) => LABEL_PROPERTY_ALIASES.has(key));
+  }
+
+  private findFeatureDescription(properties: Record<string, string>): string | null {
+    return this.findPropertyValue(properties, (key) => DESCRIPTION_PROPERTY_ALIASES.has(key));
   }
 
   private findPropertyValue(
@@ -293,12 +327,12 @@ export class GeoJsonParserService {
     );
   }
 
-  private extractRoadNameFromLabel(label: string | null): string | null {
-    if (!label) {
+  private extractRoadNameFromText(value: string | null): string | null {
+    if (!value) {
       return null;
     }
 
-    const match = label.match(/\b([A-Z]{2,3}-?\d{2,4})\b/i);
+    const match = value.match(/\b([A-Z]{2,3}-?\d{2,4})\b/i);
     return match?.[1]?.toUpperCase() ?? null;
   }
 
@@ -381,7 +415,11 @@ export class GeoJsonParserService {
     return Number(value.toFixed(12)).toString();
   }
 
-  private fallbackRoadName(fileName: string): string {
+  private inferRoadNameFromFileName(fileName: string): string | null {
+    return this.extractRoadNameFromText(this.fileLabel(fileName));
+  }
+
+  private fileLabel(fileName: string): string {
     return basename(fileName, extname(fileName)).replace(/[_-]+/g, " ").trim();
   }
 }
