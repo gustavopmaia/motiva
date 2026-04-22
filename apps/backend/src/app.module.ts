@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./auth.module";
-import { GeoJsonModule } from "./geojson.module";
+import { RoadSegmentsModule } from "./road-segments.module";
 import { HealthController } from "@infrastructure/http/health.controller";
 
 @Module({
@@ -11,7 +11,7 @@ import { HealthController } from "@infrastructure/http/health.controller";
       envFilePath: ["apps/backend/.env", ".env"],
     }),
     AuthModule,
-    GeoJsonModule,
+    RoadSegmentsModule,
   ],
   controllers: [HealthController],
 })
