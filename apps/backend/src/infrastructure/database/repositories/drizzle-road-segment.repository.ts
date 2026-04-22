@@ -125,7 +125,7 @@ export class DrizzleRoadSegmentRepository implements IRoadSegmentRepository {
       return await this.drizzle.db.execute<T>(statement);
     } catch (error) {
       if (error instanceof Error && this.isInvalidGeometryError(error.message)) {
-        throw new KmzValidationError("The KMZ contains invalid geospatial geometry.");
+        throw new KmzValidationError("The uploaded KML contains invalid geospatial geometry.");
       }
 
       throw error;

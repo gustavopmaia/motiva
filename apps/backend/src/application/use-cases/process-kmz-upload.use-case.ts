@@ -20,16 +20,17 @@ export class ProcessKmzUploadUseCase {
   ) {}
 
   async execute(markersFile: UploadedKmzFile, mowingFile: UploadedKmzFile) {
-    this.assertKmzFile(markersFile, "markers");
-    this.assertKmzFile(mowingFile, "mowing");
+    this.assertFile(markersFile, "markers");
+    this.assertFile(mowingFile, "mowing");
 
-    const [markers, mowingFeatures] = await Promise.all([
-      this.kmzParser.parseMarkers(markersFile.buffer, markersFile.originalname),
-      this.kmzParser.parseMowingFeatures(mowingFile.buffer, mowingFile.originalname),
-    ]);
+    const markers = this.kmzParser.parseMarkers(markersFile.buffer, markersFile.originalname);
+    const mowingFeatures = this.kmzParser.parseMowingFeatures(
+      mowingFile.buffer,
+      mowingFile.originalname,
+    );
 
     if (markers.length < 2) {
-      throw new KmzValidationError("The markers KMZ must contain at least two valid KM markers.");
+      throw new KmzValidationError("The markers file must contain at least two valid KM markers.");
     }
 
     const segments = this.buildSegments(markers);
@@ -49,13 +50,9 @@ export class ProcessKmzUploadUseCase {
     };
   }
 
-  private assertKmzFile(file: UploadedKmzFile | undefined, fieldName: string) {
+  private assertFile(file: UploadedKmzFile | undefined, fieldName: string) {
     if (!file) {
       throw new KmzValidationError(`The ${fieldName} file is required.`);
-    }
-
-    if (!file.originalname.toLowerCase().endsWith(".kmz")) {
-      throw new KmzValidationError(`The ${fieldName} file must be a KMZ archive.`);
     }
 
     if (file.buffer.length === 0) {

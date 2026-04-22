@@ -1,16 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { XMLParser } from "fast-xml-parser";
-import AdmZip from "adm-zip";
 import { basename, extname } from "path";
 import { KmzValidationError } from "@domain/kmz-validation.error";
 
 type Coordinate = [number, number];
 type KmlNode = Record<string, unknown>;
-type KmzEntry = {
-  isDirectory: boolean;
-  entryName: string;
-  getData(): Buffer;
-};
 
 export type ParsedKmMarker = {
   roadName: string;
@@ -67,8 +61,8 @@ export class KmzParserService {
     parseAttributeValue: false,
   });
 
-  async parseMarkers(buffer: Buffer, fileName: string): Promise<ParsedKmMarker[]> {
-    const parsedDocument = this.parseKml(await this.extractKmlContent(buffer, fileName));
+  parseMarkers(buffer: Buffer, fileName: string): ParsedKmMarker[] {
+    const parsedDocument = this.parseKml(this.readKmlContent(buffer));
     const fallbackRoadName =
       this.extractDocumentName(parsedDocument) ??
       basename(fileName, extname(fileName)).replace(/[_-]+/g, " ").trim();
@@ -78,8 +72,8 @@ export class KmzParserService {
       .filter((marker): marker is ParsedKmMarker => marker !== null);
   }
 
-  async parseMowingFeatures(buffer: Buffer, fileName: string): Promise<ParsedMowingFeature[]> {
-    const parsedDocument = this.parseKml(await this.extractKmlContent(buffer, fileName));
+  parseMowingFeatures(buffer: Buffer, fileName: string): ParsedMowingFeature[] {
+    const parsedDocument = this.parseKml(this.readKmlContent(buffer));
     const fallbackRoadName = this.extractDocumentName(parsedDocument);
 
     return this.findNodesByKey(parsedDocument, "Placemark").flatMap((placemark) =>
@@ -87,44 +81,21 @@ export class KmzParserService {
     );
   }
 
-  private async extractKmlContent(buffer: Buffer, fileName: string): Promise<string> {
-    const extension = extname(fileName).toLowerCase();
+  private readKmlContent(buffer: Buffer): string {
+    const content = buffer.toString("utf8");
 
-    if (extension !== ".kmz") {
-      throw new KmzValidationError("Only KMZ files are supported.");
+    if (!/^\s*(<\?xml[\s\S]*?\?>\s*)?<kml[\s>]/i.test(content)) {
+      throw new KmzValidationError("The uploaded file must be a valid KML document.");
     }
 
-    try {
-      const archive = new AdmZip(buffer);
-      const kmlEntry = (archive.getEntries() as KmzEntry[])
-        .filter(
-          (entry: KmzEntry) => !entry.isDirectory && entry.entryName.toLowerCase().endsWith(".kml"),
-        )
-        .sort((left: KmzEntry, right: KmzEntry) => {
-          if (left.entryName.toLowerCase() === "doc.kml") return -1;
-          if (right.entryName.toLowerCase() === "doc.kml") return 1;
-          return left.entryName.localeCompare(right.entryName);
-        })[0];
-
-      if (!kmlEntry) {
-        throw new KmzValidationError("KMZ archive does not contain a KML file.");
-      }
-
-      return kmlEntry.getData().toString("utf8");
-    } catch (error) {
-      if (error instanceof KmzValidationError) {
-        throw error;
-      }
-
-      throw new KmzValidationError("Invalid KMZ archive.");
-    }
+    return content;
   }
 
   private parseKml(content: string) {
     try {
       return this.xmlParser.parse(content);
     } catch {
-      throw new KmzValidationError("Failed to parse the KML inside the KMZ file.");
+      throw new KmzValidationError("Failed to parse the uploaded KML file.");
     }
   }
 

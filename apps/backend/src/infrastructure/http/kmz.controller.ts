@@ -43,7 +43,7 @@ export class KmzController {
     const mowing = files?.mowing?.[0];
 
     if (!markers || !mowing) {
-      throw new BadRequestException("Both KMZ files are required: markers and mowing.");
+      throw new BadRequestException("Both KML files are required: markers and mowing.");
     }
 
     try {
@@ -58,8 +58,8 @@ export class KmzController {
         throw new InternalServerErrorException(error.message);
       }
 
-      this.logger.error("KMZ processing failed with an unknown error.");
-      throw new InternalServerErrorException("KMZ processing failed.");
+      this.logger.error("KML processing failed with an unknown error.");
+      throw new InternalServerErrorException("KML processing failed.");
     }
   }
 }
