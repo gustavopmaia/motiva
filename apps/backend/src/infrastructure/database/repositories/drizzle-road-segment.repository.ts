@@ -118,7 +118,9 @@ export class DrizzleRoadSegmentRepository implements IRoadSegmentRepository {
     return { created, updated: rows.length - created };
   }
 
-  private async executeOrThrowValidation<T>(statement: ReturnType<typeof sql>) {
+  private async executeOrThrowValidation<T extends Record<string, unknown>>(
+    statement: ReturnType<typeof sql>,
+  ) {
     try {
       return await this.drizzle.db.execute<T>(statement);
     } catch (error) {
