@@ -54,12 +54,31 @@ export class GeoJsonController {
       }
 
       if (error instanceof Error) {
-        this.logger.error(error.message, error.stack);
-        throw new InternalServerErrorException(error.message);
+        const rootCauseMessage = this.extractRootCauseMessage(error);
+        this.logger.error(rootCauseMessage, error.stack);
+        throw new InternalServerErrorException("GeoJSON processing failed.");
       }
 
       this.logger.error("GeoJSON processing failed with an unknown error.");
       throw new InternalServerErrorException("GeoJSON processing failed.");
     }
+  }
+
+  private extractRootCauseMessage(error: Error): string {
+    const visited = new Set<unknown>();
+    let current: unknown = error;
+    let message = error.message;
+
+    while (current instanceof Error && !visited.has(current)) {
+      visited.add(current);
+
+      if (current.message.trim().length > 0 && !current.message.startsWith("Failed query:")) {
+        message = current.message;
+      }
+
+      current = (current as Error & { cause?: unknown }).cause;
+    }
+
+    return message;
   }
 }
