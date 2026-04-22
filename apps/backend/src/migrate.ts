@@ -1,7 +1,7 @@
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { join } from "path";
+import { resolveMigrationsFolder } from "./infrastructure/database/migrations-folder";
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -13,7 +13,7 @@ const client = postgres(url, { max: 1 });
 const db = drizzle(client);
 
 migrate(db, {
-  migrationsFolder: join(process.cwd(), "apps/backend/drizzle/migrations"),
+  migrationsFolder: resolveMigrationsFolder(),
 })
   .then(() => {
     console.log("Migrations applied successfully");

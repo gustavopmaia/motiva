@@ -17,7 +17,7 @@ services:
       - ./apps/backend/drizzle:/app/apps/backend/drizzle
     environment:
       DATABASE_URL: postgresql://x:x@localhost:5432/x
-    command: node_modules/.bin/drizzle-kit generate --config apps/backend/drizzle.config.ts
+    command: ["npm", "run", "--workspace", "backend", "generate"]
     profiles: [generate]
 
   migrator:

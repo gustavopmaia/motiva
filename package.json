@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "db:generate": "npm run --workspace backend generate",
+    "db:migrate": "npm run --workspace backend build && node apps/backend/dist/src/migrate.js",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

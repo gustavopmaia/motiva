@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
-import { join } from "path";
+import { resolveMigrationsFolder } from "./migrations-folder";
 import * as schema from "./schema";
 
 @Injectable()
@@ -19,7 +19,7 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     await migrate(this.db, {
-      migrationsFolder: join(process.cwd(), "apps/backend/drizzle/migrations"),
+      migrationsFolder: resolveMigrationsFolder(),
     });
   }
 
