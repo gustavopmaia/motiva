@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   InternalServerErrorException,
+  Logger,
   Post,
   UploadedFiles,
   UseInterceptors,
@@ -18,6 +19,8 @@ type UploadedFilesPayload = {
 
 @Controller({ path: "kmz", version: VERSION_NEUTRAL })
 export class KmzController {
+  private readonly logger = new Logger(KmzController.name);
+
   constructor(private readonly processKmzUploadUseCase: ProcessKmzUploadUseCase) {}
 
   @Post("upload")
@@ -49,6 +52,13 @@ export class KmzController {
       if (error instanceof KmzValidationError) {
         throw new BadRequestException(error.message);
       }
+
+      if (error instanceof Error) {
+        this.logger.error(error.message, error.stack);
+        throw new InternalServerErrorException(error.message);
+      }
+
+      this.logger.error("KMZ processing failed with an unknown error.");
       throw new InternalServerErrorException("KMZ processing failed.");
     }
   }

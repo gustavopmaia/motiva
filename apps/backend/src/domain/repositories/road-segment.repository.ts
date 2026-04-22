@@ -12,14 +12,9 @@ export type RoadSegmentUpsertInput = {
   mowingType: string | null;
 };
 
-export type SegmentGeometryInput = {
-  roadName: string;
-  geometryWkt: string;
-};
-
 export abstract class IRoadSegmentRepository {
   abstract findMowingTypes(
-    segments: SegmentGeometryInput[],
+    segments: RoadSegmentUpsertInput[],
     mowingFeatures: MowingFeatureMatchInput[],
   ): Promise<(string | null)[]>;
 

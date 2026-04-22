@@ -20,8 +20,8 @@ export class ProcessKmzUploadUseCase {
   ) {}
 
   async execute(markersFile: UploadedKmzFile, mowingFile: UploadedKmzFile) {
-    validateKmzFile(markersFile, "markers");
-    validateKmzFile(mowingFile, "mowing");
+    this.assertKmzFile(markersFile, "markers");
+    this.assertKmzFile(mowingFile, "mowing");
 
     const [markers, mowingFeatures] = await Promise.all([
       this.kmzParser.parseMarkers(markersFile.buffer, markersFile.originalname),
@@ -32,13 +32,10 @@ export class ProcessKmzUploadUseCase {
       throw new KmzValidationError("The markers KMZ must contain at least two valid KM markers.");
     }
 
-    const segments = buildAllSegments(markers);
-    const mowingTypes = await this.roadSegmentRepository.findMowingTypes(
-      segments.map((s) => ({ roadName: s.roadName, geometryWkt: s.geometryWkt })),
-      mowingFeatures,
-    );
+    const segments = this.buildSegments(markers);
+    const mowingTypes = await this.roadSegmentRepository.findMowingTypes(segments, mowingFeatures);
 
-    const upsertInputs: RoadSegmentUpsertInput[] = segments.map((seg, idx) => ({
+    const upsertInputs = segments.map((seg, idx) => ({
       ...seg,
       mowingType: mowingTypes[idx] ?? null,
     }));
@@ -51,78 +48,74 @@ export class ProcessKmzUploadUseCase {
       segmentsWithoutIdentifiedMowingType: mowingTypes.filter((t) => t === null).length,
     };
   }
-}
 
-function validateKmzFile(file: UploadedKmzFile | undefined, fieldName: string): void {
-  if (!file) throw new KmzValidationError(`The ${fieldName} file is required.`);
-  if (!file.originalname.toLowerCase().endsWith(".kmz"))
-    throw new KmzValidationError(`The ${fieldName} file must be a KMZ archive.`);
-  if (file.buffer.length === 0) throw new KmzValidationError(`The ${fieldName} file is empty.`);
-}
+  private assertKmzFile(file: UploadedKmzFile | undefined, fieldName: string) {
+    if (!file) {
+      throw new KmzValidationError(`The ${fieldName} file is required.`);
+    }
 
-function buildAllSegments(markers: ParsedKmMarker[]): RoadSegmentUpsertInput[] {
-  const grouped = new Map<string, ParsedKmMarker[]>();
+    if (!file.originalname.toLowerCase().endsWith(".kmz")) {
+      throw new KmzValidationError(`The ${fieldName} file must be a KMZ archive.`);
+    }
 
-  for (const marker of markers) {
-    const key = marker.roadName.trim().toLowerCase();
-    const list = grouped.get(key) ?? [];
-    list.push(marker);
-    grouped.set(key, list);
-  }
-
-  for (const list of grouped.values()) {
-    list.sort((a, b) => a.km - b.km);
-  }
-
-  return [...grouped.values()].flatMap(buildRoadSegments);
-}
-
-function buildRoadSegments(markers: ParsedKmMarker[]): RoadSegmentUpsertInput[] {
-  const segments: RoadSegmentUpsertInput[] = [];
-
-  for (let i = 0; i < markers.length - 1; i++) {
-    const from = markers[i];
-    const to = markers[i + 1];
-    const distance = to.km - from.km;
-
-    if (distance <= 0) continue;
-
-    // TODO: linear interpolation between KM markers ignores road curvature.
-    // Segments spanning > 1 km may deviate significantly from the actual road path.
-    // Fix: read the actual LineString geometry from the markers KMZ instead of interpolating.
-    const count = Math.ceil(distance / 0.5);
-
-    for (let s = 0; s < count; s++) {
-      const t0 = s / count;
-      const t1 = (s + 1) / count;
-      const [lon0, lat0] = interpolate(from.coordinate, to.coordinate, t0);
-      const [lon1, lat1] = interpolate(from.coordinate, to.coordinate, t1);
-
-      segments.push({
-        roadName: from.roadName,
-        kmStart: round3(from.km + distance * t0),
-        kmEnd: round3(from.km + distance * t1),
-        mowingType: null,
-        geometryWkt: `LINESTRING(${fmt(lon0)} ${fmt(lat0)}, ${fmt(lon1)} ${fmt(lat1)})`,
-      });
+    if (file.buffer.length === 0) {
+      throw new KmzValidationError(`The ${fieldName} file is empty.`);
     }
   }
 
-  return segments;
-}
+  private buildSegments(markers: ParsedKmMarker[]): RoadSegmentUpsertInput[] {
+    const roads = new Map<string, ParsedKmMarker[]>();
 
-function interpolate(
-  [x0, y0]: [number, number],
-  [x1, y1]: [number, number],
-  t: number,
-): [number, number] {
-  return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t];
-}
+    for (const marker of markers) {
+      const key = marker.roadName.trim().toLowerCase();
+      const roadMarkers = roads.get(key) ?? [];
+      roadMarkers.push(marker);
+      roads.set(key, roadMarkers);
+    }
 
-function round3(value: number): number {
-  return Number(value.toFixed(3));
-}
+    const segments: RoadSegmentUpsertInput[] = [];
 
-function fmt(value: number): string {
-  return Number(value.toFixed(12)).toString();
+    for (const roadMarkers of roads.values()) {
+      roadMarkers.sort((left, right) => left.km - right.km);
+
+      for (let i = 0; i < roadMarkers.length - 1; i += 1) {
+        const from = roadMarkers[i];
+        const to = roadMarkers[i + 1];
+        const distance = to.km - from.km;
+
+        if (distance <= 0) {
+          continue;
+        }
+
+        // TODO: linear interpolation between KM markers ignores road curvature.
+        // Segments spanning > 1 km may deviate significantly from the actual road path.
+        const count = Math.ceil(distance / 0.5);
+
+        for (let part = 0; part < count; part += 1) {
+          const start = part / count;
+          const end = (part + 1) / count;
+          const startLongitude =
+            from.coordinate[0] + (to.coordinate[0] - from.coordinate[0]) * start;
+          const startLatitude =
+            from.coordinate[1] + (to.coordinate[1] - from.coordinate[1]) * start;
+          const endLongitude = from.coordinate[0] + (to.coordinate[0] - from.coordinate[0]) * end;
+          const endLatitude = from.coordinate[1] + (to.coordinate[1] - from.coordinate[1]) * end;
+
+          segments.push({
+            roadName: from.roadName,
+            kmStart: Number((from.km + distance * start).toFixed(3)),
+            kmEnd: Number((from.km + distance * end).toFixed(3)),
+            mowingType: null,
+            geometryWkt: `LINESTRING(${Number(startLongitude.toFixed(12)).toString()} ${Number(
+              startLatitude.toFixed(12),
+            ).toString()}, ${Number(endLongitude.toFixed(12)).toString()} ${Number(
+              endLatitude.toFixed(12),
+            ).toString()})`,
+          });
+        }
+      }
+    }
+
+    return segments;
+  }
 }

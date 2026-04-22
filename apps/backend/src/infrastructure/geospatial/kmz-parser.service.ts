@@ -68,9 +68,10 @@ export class KmzParserService {
   });
 
   async parseMarkers(buffer: Buffer, fileName: string): Promise<ParsedKmMarker[]> {
-    const parsedDocument = await this.parseDocument(buffer, fileName);
+    const parsedDocument = this.parseKml(await this.extractKmlContent(buffer, fileName));
     const fallbackRoadName =
-      this.extractDocumentName(parsedDocument) ?? this.extractFallbackRoadName(fileName);
+      this.extractDocumentName(parsedDocument) ??
+      basename(fileName, extname(fileName)).replace(/[_-]+/g, " ").trim();
 
     return this.findNodesByKey(parsedDocument, "Placemark")
       .map((placemark) => this.parseMarkerPlacemark(placemark, fallbackRoadName))
@@ -78,17 +79,12 @@ export class KmzParserService {
   }
 
   async parseMowingFeatures(buffer: Buffer, fileName: string): Promise<ParsedMowingFeature[]> {
-    const parsedDocument = await this.parseDocument(buffer, fileName);
+    const parsedDocument = this.parseKml(await this.extractKmlContent(buffer, fileName));
     const fallbackRoadName = this.extractDocumentName(parsedDocument);
 
     return this.findNodesByKey(parsedDocument, "Placemark").flatMap((placemark) =>
       this.parseMowingPlacemark(placemark, fallbackRoadName),
     );
-  }
-
-  private async parseDocument(buffer: Buffer, fileName: string) {
-    const kmlContent = await this.extractKmlContent(buffer, fileName);
-    return this.xmlParser.parse(kmlContent);
   }
 
   private async extractKmlContent(buffer: Buffer, fileName: string): Promise<string> {
@@ -98,22 +94,38 @@ export class KmzParserService {
       throw new KmzValidationError("Only KMZ files are supported.");
     }
 
-    const archive = new AdmZip(buffer);
-    const kmlEntry = (archive.getEntries() as KmzEntry[])
-      .filter(
-        (entry: KmzEntry) => !entry.isDirectory && entry.entryName.toLowerCase().endsWith(".kml"),
-      )
-      .sort((left: KmzEntry, right: KmzEntry) => {
-        if (left.entryName.toLowerCase() === "doc.kml") return -1;
-        if (right.entryName.toLowerCase() === "doc.kml") return 1;
-        return left.entryName.localeCompare(right.entryName);
-      })[0];
+    try {
+      const archive = new AdmZip(buffer);
+      const kmlEntry = (archive.getEntries() as KmzEntry[])
+        .filter(
+          (entry: KmzEntry) => !entry.isDirectory && entry.entryName.toLowerCase().endsWith(".kml"),
+        )
+        .sort((left: KmzEntry, right: KmzEntry) => {
+          if (left.entryName.toLowerCase() === "doc.kml") return -1;
+          if (right.entryName.toLowerCase() === "doc.kml") return 1;
+          return left.entryName.localeCompare(right.entryName);
+        })[0];
 
-    if (!kmlEntry) {
-      throw new KmzValidationError("KMZ archive does not contain a KML file.");
+      if (!kmlEntry) {
+        throw new KmzValidationError("KMZ archive does not contain a KML file.");
+      }
+
+      return kmlEntry.getData().toString("utf8");
+    } catch (error) {
+      if (error instanceof KmzValidationError) {
+        throw error;
+      }
+
+      throw new KmzValidationError("Invalid KMZ archive.");
     }
+  }
 
-    return kmlEntry.getData().toString("utf8");
+  private parseKml(content: string) {
+    try {
+      return this.xmlParser.parse(content);
+    } catch {
+      throw new KmzValidationError("Failed to parse the KML inside the KMZ file.");
+    }
   }
 
   private parseMarkerPlacemark(node: unknown, fallbackRoadName: string): ParsedKmMarker | null {
@@ -133,7 +145,9 @@ export class KmzParserService {
       this.toNullableString(placemark.name),
       properties.name ?? null,
     ]);
-    const km = this.extractKmValue(properties, label);
+    const km =
+      this.parseKmNumber(this.findPropertyValue(properties, (key) => this.matchesKmKey(key))) ??
+      this.parseKmNumber(label);
 
     if (km === null) {
       return null;
@@ -167,8 +181,7 @@ export class KmzParserService {
       properties.name ?? null,
     ]);
     const mowingType =
-      this.findPropertyValue(properties, (key) => this.matchesMowingTypeKey(key)) ??
-      this.extractMowingTypeFromLabel(label);
+      this.findPropertyValue(properties, (key) => this.matchesMowingTypeKey(key)) ?? label;
 
     if (!mowingType) {
       return [];
@@ -293,26 +306,11 @@ export class KmzParserService {
     return this.parseCoordinates(linearRing?.coordinates);
   }
 
-  private extractKmValue(properties: Record<string, string>, label: string | null): number | null {
-    const propertyValue = this.findPropertyValue(properties, (key) => this.matchesKmKey(key));
-
-    return this.parseKmNumber(propertyValue) ?? this.parseKmNumber(label);
-  }
-
   private extractRoadName(properties: Record<string, string>, label: string | null): string | null {
     return (
       this.findPropertyValue(properties, (key) => this.matchesRoadNameKey(key)) ??
       this.extractRoadNameFromLabel(label)
     );
-  }
-
-  private extractMowingTypeFromLabel(label: string | null): string | null {
-    if (!label) {
-      return null;
-    }
-
-    const trimmed = label.trim();
-    return trimmed.length > 0 ? trimmed : null;
   }
 
   private extractRoadNameFromLabel(label: string | null): string | null {
@@ -329,10 +327,6 @@ export class KmzParserService {
     const folderNode = this.findNodesByKey(document, "Folder")[0];
     const record = this.asRecord(documentNode) ?? this.asRecord(folderNode);
     return this.toNullableString(record?.name);
-  }
-
-  private extractFallbackRoadName(fileName: string): string {
-    return basename(fileName, extname(fileName)).replace(/[_-]+/g, " ").trim();
   }
 
   private parseKmNumber(value: string | null): number | null {

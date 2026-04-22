@@ -4,8 +4,8 @@ import {
   IRoadSegmentRepository,
   MowingFeatureMatchInput,
   RoadSegmentUpsertInput,
-  SegmentGeometryInput,
 } from "@domain/repositories/road-segment.repository";
+import { KmzValidationError } from "@domain/kmz-validation.error";
 import { DrizzleService } from "../drizzle.service";
 
 type MowingTypeRow = { idx: number; mowing_type: string | null };
@@ -16,7 +16,7 @@ export class DrizzleRoadSegmentRepository implements IRoadSegmentRepository {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async findMowingTypes(
-    segments: SegmentGeometryInput[],
+    segments: RoadSegmentUpsertInput[],
     mowingFeatures: MowingFeatureMatchInput[],
   ): Promise<(string | null)[]> {
     if (segments.length === 0 || mowingFeatures.length === 0) {
@@ -39,7 +39,7 @@ export class DrizzleRoadSegmentRepository implements IRoadSegmentRepository {
       sql`, `,
     );
 
-    const rows = await this.drizzle.db.execute<MowingTypeRow>(sql`
+    const rows = await this.executeOrThrowValidation<MowingTypeRow>(sql`
       with segment_inputs(idx, geom, road_name) as (
         values ${segmentValues}
       ),
@@ -78,10 +78,9 @@ export class DrizzleRoadSegmentRepository implements IRoadSegmentRepository {
       order by s.idx
     `);
 
-    return segments.map((_, idx) => {
-      const row = rows.find((r) => Number(r.idx) === idx);
-      return row?.mowing_type ?? null;
-    });
+    const byIndex = new Map(rows.map((row) => [Number(row.idx), row.mowing_type]));
+
+    return segments.map((_, idx) => byIndex.get(idx) ?? null);
   }
 
   async upsertAll(
@@ -105,7 +104,7 @@ export class DrizzleRoadSegmentRepository implements IRoadSegmentRepository {
       sql`, `,
     );
 
-    const rows = await this.drizzle.db.execute<UpsertRow>(sql`
+    const rows = await this.executeOrThrowValidation<UpsertRow>(sql`
       insert into road_segments (road_name, km_start, km_end, mowing_type, geometry)
       values ${values}
       on conflict (road_name, km_start, km_end) do update set
@@ -117,5 +116,28 @@ export class DrizzleRoadSegmentRepository implements IRoadSegmentRepository {
 
     const created = rows.filter((r) => r.created).length;
     return { created, updated: rows.length - created };
+  }
+
+  private async executeOrThrowValidation<T>(statement: ReturnType<typeof sql>) {
+    try {
+      return await this.drizzle.db.execute<T>(statement);
+    } catch (error) {
+      if (error instanceof Error && this.isInvalidGeometryError(error.message)) {
+        throw new KmzValidationError("The KMZ contains invalid geospatial geometry.");
+      }
+
+      throw error;
+    }
+  }
+
+  private isInvalidGeometryError(message: string) {
+    const normalized = message.toLowerCase();
+
+    return (
+      normalized.includes("topologyexception") ||
+      normalized.includes("parse error") ||
+      normalized.includes("invalid geometry") ||
+      normalized.includes("lwgeom")
+    );
   }
 }
