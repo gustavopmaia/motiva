@@ -1,21 +1,21 @@
 import { Module } from "@nestjs/common";
-import { ProcessKmzUploadUseCase } from "@application/use-cases/process-kmz-upload.use-case";
+import { ProcessGeoJsonUploadUseCase } from "@application/use-cases/process-geojson-upload.use-case";
 import { IRoadSegmentRepository } from "@domain/repositories/road-segment.repository";
 import { DrizzleRoadSegmentRepository } from "@infrastructure/database/repositories/drizzle-road-segment.repository";
-import { KmzParserService } from "@infrastructure/geospatial/kmz-parser.service";
-import { KmzController } from "@infrastructure/http/kmz.controller";
+import { GeoJsonParserService } from "@infrastructure/geospatial/geojson-parser.service";
+import { GeoJsonController } from "@infrastructure/http/geojson.controller";
 import { DatabaseModule } from "./database.module";
 
 @Module({
   imports: [DatabaseModule],
   providers: [
-    ProcessKmzUploadUseCase,
-    KmzParserService,
+    ProcessGeoJsonUploadUseCase,
+    GeoJsonParserService,
     {
       provide: IRoadSegmentRepository,
       useClass: DrizzleRoadSegmentRepository,
     },
   ],
-  controllers: [KmzController],
+  controllers: [GeoJsonController],
 })
-export class KmzModule {}
+export class GeoJsonModule {}

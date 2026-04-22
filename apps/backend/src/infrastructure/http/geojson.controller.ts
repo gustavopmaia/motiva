@@ -9,19 +9,19 @@ import {
   VERSION_NEUTRAL,
 } from "@nestjs/common";
 import { FileFieldsInterceptor } from "@nestjs/platform-express";
-import { KmzValidationError } from "@domain/kmz-validation.error";
-import { ProcessKmzUploadUseCase } from "@application/use-cases/process-kmz-upload.use-case";
+import { ProcessGeoJsonUploadUseCase } from "@application/use-cases/process-geojson-upload.use-case";
+import { GeoJsonValidationError } from "@domain/geojson-validation.error";
 
 type UploadedFilesPayload = {
   markers?: Array<{ originalname: string; buffer: Buffer }>;
   mowing?: Array<{ originalname: string; buffer: Buffer }>;
 };
 
-@Controller({ path: "kmz", version: VERSION_NEUTRAL })
-export class KmzController {
-  private readonly logger = new Logger(KmzController.name);
+@Controller({ path: "geojson", version: VERSION_NEUTRAL })
+export class GeoJsonController {
+  private readonly logger = new Logger(GeoJsonController.name);
 
-  constructor(private readonly processKmzUploadUseCase: ProcessKmzUploadUseCase) {}
+  constructor(private readonly processGeoJsonUploadUseCase: ProcessGeoJsonUploadUseCase) {}
 
   @Post("upload")
   @UseInterceptors(
@@ -43,13 +43,13 @@ export class KmzController {
     const mowing = files?.mowing?.[0];
 
     if (!markers || !mowing) {
-      throw new BadRequestException("Both KML files are required: markers and mowing.");
+      throw new BadRequestException("Both GeoJSON files are required: markers and mowing.");
     }
 
     try {
-      return await this.processKmzUploadUseCase.execute(markers, mowing);
+      return await this.processGeoJsonUploadUseCase.execute(markers, mowing);
     } catch (error) {
-      if (error instanceof KmzValidationError) {
+      if (error instanceof GeoJsonValidationError) {
         throw new BadRequestException(error.message);
       }
 
@@ -58,8 +58,8 @@ export class KmzController {
         throw new InternalServerErrorException(error.message);
       }
 
-      this.logger.error("KML processing failed with an unknown error.");
-      throw new InternalServerErrorException("KML processing failed.");
+      this.logger.error("GeoJSON processing failed with an unknown error.");
+      throw new InternalServerErrorException("GeoJSON processing failed.");
     }
   }
 }

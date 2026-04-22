@@ -1,62 +1,65 @@
 import { Injectable } from "@nestjs/common";
-import { KmzValidationError } from "@domain/kmz-validation.error";
+import { GeoJsonValidationError } from "@domain/geojson-validation.error";
 import {
   IRoadSegmentRepository,
-  MowingFeatureMatchInput,
   RoadSegmentUpsertInput,
 } from "@domain/repositories/road-segment.repository";
-import { KmzParserService, ParsedKmMarker } from "@infrastructure/geospatial/kmz-parser.service";
+import {
+  GeoJsonParserService,
+  ParsedKmMarker,
+} from "@infrastructure/geospatial/geojson-parser.service";
 
-type UploadedKmzFile = {
+type UploadedGeoJsonFile = {
   originalname: string;
   buffer: Buffer;
 };
 
 @Injectable()
-export class ProcessKmzUploadUseCase {
+export class ProcessGeoJsonUploadUseCase {
   constructor(
-    private readonly kmzParser: KmzParserService,
+    private readonly geoJsonParser: GeoJsonParserService,
     private readonly roadSegmentRepository: IRoadSegmentRepository,
   ) {}
 
-  async execute(markersFile: UploadedKmzFile, mowingFile: UploadedKmzFile) {
+  async execute(markersFile: UploadedGeoJsonFile, mowingFile: UploadedGeoJsonFile) {
     this.assertFile(markersFile, "markers");
     this.assertFile(mowingFile, "mowing");
 
-    const markers = this.kmzParser.parseMarkers(markersFile.buffer, markersFile.originalname);
-    const mowingFeatures = this.kmzParser.parseMowingFeatures(
+    const markers = this.geoJsonParser.parseMarkers(markersFile.buffer, markersFile.originalname);
+    const mowingFeatures = this.geoJsonParser.parseMowingFeatures(
       mowingFile.buffer,
       mowingFile.originalname,
     );
 
     if (markers.length < 2) {
-      throw new KmzValidationError("The markers file must contain at least two valid KM markers.");
+      throw new GeoJsonValidationError(
+        "The markers file must contain at least two valid KM markers.",
+      );
     }
 
     const segments = this.buildSegments(markers);
     const mowingTypes = await this.roadSegmentRepository.findMowingTypes(segments, mowingFeatures);
-
-    const upsertInputs = segments.map((seg, idx) => ({
-      ...seg,
-      mowingType: mowingTypes[idx] ?? null,
-    }));
-
-    const { created, updated } = await this.roadSegmentRepository.upsertAll(upsertInputs);
+    const { created, updated } = await this.roadSegmentRepository.upsertAll(
+      segments.map((segment, index) => ({
+        ...segment,
+        mowingType: mowingTypes[index] ?? null,
+      })),
+    );
 
     return {
       createdSegments: created,
       updatedSegments: updated,
-      segmentsWithoutIdentifiedMowingType: mowingTypes.filter((t) => t === null).length,
+      segmentsWithoutIdentifiedMowingType: mowingTypes.filter((type) => type === null).length,
     };
   }
 
-  private assertFile(file: UploadedKmzFile | undefined, fieldName: string) {
+  private assertFile(file: UploadedGeoJsonFile | undefined, fieldName: string) {
     if (!file) {
-      throw new KmzValidationError(`The ${fieldName} file is required.`);
+      throw new GeoJsonValidationError(`The ${fieldName} file is required.`);
     }
 
     if (file.buffer.length === 0) {
-      throw new KmzValidationError(`The ${fieldName} file is empty.`);
+      throw new GeoJsonValidationError(`The ${fieldName} file is empty.`);
     }
   }
 
@@ -75,17 +78,15 @@ export class ProcessKmzUploadUseCase {
     for (const roadMarkers of roads.values()) {
       roadMarkers.sort((left, right) => left.km - right.km);
 
-      for (let i = 0; i < roadMarkers.length - 1; i += 1) {
-        const from = roadMarkers[i];
-        const to = roadMarkers[i + 1];
+      for (let index = 0; index < roadMarkers.length - 1; index += 1) {
+        const from = roadMarkers[index];
+        const to = roadMarkers[index + 1];
         const distance = to.km - from.km;
 
         if (distance <= 0) {
           continue;
         }
 
-        // TODO: linear interpolation between KM markers ignores road curvature.
-        // Segments spanning > 1 km may deviate significantly from the actual road path.
         const count = Math.ceil(distance / 0.5);
 
         for (let part = 0; part < count; part += 1) {

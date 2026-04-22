@@ -1,8 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./auth.module";
+import { GeoJsonModule } from "./geojson.module";
 import { HealthController } from "@infrastructure/http/health.controller";
-import { KmzModule } from "./kmz.module";
 
 @Module({
   imports: [
@@ -11,7 +11,7 @@ import { KmzModule } from "./kmz.module";
       envFilePath: ["apps/backend/.env", ".env"],
     }),
     AuthModule,
-    KmzModule,
+    GeoJsonModule,
   ],
   controllers: [HealthController],
 })

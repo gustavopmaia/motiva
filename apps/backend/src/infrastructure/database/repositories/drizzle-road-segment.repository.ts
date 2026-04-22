@@ -5,7 +5,7 @@ import {
   MowingFeatureMatchInput,
   RoadSegmentUpsertInput,
 } from "@domain/repositories/road-segment.repository";
-import { KmzValidationError } from "@domain/kmz-validation.error";
+import { GeoJsonValidationError } from "@domain/geojson-validation.error";
 import { DrizzleService } from "../drizzle.service";
 
 type MowingTypeRow = { idx: number; mowing_type: string | null };
@@ -125,7 +125,9 @@ export class DrizzleRoadSegmentRepository implements IRoadSegmentRepository {
       return await this.drizzle.db.execute<T>(statement);
     } catch (error) {
       if (error instanceof Error && this.isInvalidGeometryError(error.message)) {
-        throw new KmzValidationError("The uploaded KML contains invalid geospatial geometry.");
+        throw new GeoJsonValidationError(
+          "The uploaded GeoJSON contains invalid geospatial geometry.",
+        );
       }
 
       throw error;
