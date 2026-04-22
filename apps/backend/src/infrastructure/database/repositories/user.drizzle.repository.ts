@@ -6,7 +6,7 @@ import { DrizzleService } from "../drizzle.service";
 import { users } from "../schema";
 
 @Injectable()
-export class DrizzleUserRepository implements IUserRepository {
+export class UserDrizzleRepository implements IUserRepository {
   constructor(private drizzle: DrizzleService) {}
 
   async findByEmail(email: string): Promise<User | null> {

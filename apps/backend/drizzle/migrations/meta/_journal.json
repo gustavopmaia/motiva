@@ -8,6 +8,13 @@
       "when": 1776855600000,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776864861689,
+      "tag": "0001_readings_ingestion",
+      "breakpoints": true
     }
   ]
 }

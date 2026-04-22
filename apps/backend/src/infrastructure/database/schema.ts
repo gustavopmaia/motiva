@@ -1,4 +1,17 @@
-import { customType, numeric, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  customType,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 const lineStringGeometry = customType<{ data: string }>({
   dataType() {
@@ -27,6 +40,8 @@ export const roadSegments = pgTable(
     kmEnd: numeric("km_end", { precision: 10, scale: 3 }).notNull(),
     mowingType: text("mowing_type"),
     geometry: lineStringGeometry("geometry").notNull(),
+    scoreCurrent: doublePrecision("score_current"),
+    scoreDivergent: boolean("score_divergent").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -42,7 +57,35 @@ export const roadSegments = pgTable(
   }),
 );
 
+export const readings = pgTable(
+  "readings",
+  {
+    id: uuid("id").primaryKey(),
+    segmentId: uuid("segment_id")
+      .notNull()
+      .references(() => roadSegments.id),
+    source: text("source").notNull(),
+    heightCm: integer("height_cm"),
+    classification: text("classification"),
+    confidence: doublePrecision("confidence").notNull(),
+    score: doublePrecision("score").notNull(),
+    lat: doublePrecision("lat").notNull(),
+    lon: doublePrecision("lon").notNull(),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    segmentSourceCreatedAtIndex: index("readings_segment_source_created_at_idx").on(
+      table.segmentId,
+      table.source,
+      table.createdAt,
+    ),
+  }),
+);
+
 export type UserRecord = typeof users.$inferSelect;
 export type NewUserRecord = typeof users.$inferInsert;
 export type RoadSegmentRecord = typeof roadSegments.$inferSelect;
 export type NewRoadSegmentRecord = typeof roadSegments.$inferInsert;
+export type ReadingRecord = typeof readings.$inferSelect;
+export type NewReadingRecord = typeof readings.$inferInsert;

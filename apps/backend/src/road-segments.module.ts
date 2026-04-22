@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { IRoadSegmentRepository } from "@domain/repositories/road-segment.repository";
-import { DrizzleRoadSegmentRepository } from "@infrastructure/database/repositories/drizzle.road-segment.repository";
+import { RoadSegmentDrizzleRepository } from "@infrastructure/database/repositories/road-segment.drizzle.repository";
 import { DatabaseModule } from "./database.module";
 
 @Module({
@@ -8,7 +8,7 @@ import { DatabaseModule } from "./database.module";
   providers: [
     {
       provide: IRoadSegmentRepository,
-      useClass: DrizzleRoadSegmentRepository,
+      useClass: RoadSegmentDrizzleRepository,
     },
   ],
   exports: [IRoadSegmentRepository],

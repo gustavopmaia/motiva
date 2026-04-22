@@ -1,7 +1,9 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 import { AuthModule } from "./auth.module";
 import { RoadSegmentsModule } from "./road-segments.module";
+import { ReadingsModule } from "./readings.module";
 import { HealthController } from "@infrastructure/http/health.controller";
 
 @Module({
@@ -10,8 +12,10 @@ import { HealthController } from "@infrastructure/http/health.controller";
       isGlobal: true,
       envFilePath: ["apps/backend/.env", ".env"],
     }),
+    EventEmitterModule.forRoot(),
     AuthModule,
     RoadSegmentsModule,
+    ReadingsModule,
   ],
   controllers: [HealthController],
 })

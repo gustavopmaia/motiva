@@ -5,7 +5,7 @@ import * as argon2 from "argon2";
 import { randomUUID } from "crypto";
 
 @Injectable()
-export class RegisterUseCase {
+export class RegisterUserUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
 
   async execute(email: string, name: string, password: string) {
