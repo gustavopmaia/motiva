@@ -8,8 +8,8 @@
     "start": "node dist/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "test": "jest",
-    "migrate:dev": "drizzle-kit migrate",
-    "generate": "drizzle-kit generate"
+    "migrate:dev": "npm exec -- drizzle-kit migrate",
+    "generate": "npm exec -- drizzle-kit generate"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.19",
