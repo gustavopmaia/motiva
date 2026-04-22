@@ -12,7 +12,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: builder
+      target: deps
     volumes:
       - ./apps/backend/drizzle:/app/apps/backend/drizzle
     environment:

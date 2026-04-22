@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim AS builder
+FROM node:20-bookworm-slim AS deps
 
 RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 
@@ -15,8 +15,9 @@ COPY apps/backend/src apps/backend/src
 COPY apps/backend/tsconfig*.json apps/backend/
 COPY apps/backend/drizzle.config.ts apps/backend/
 COPY packages packages
-
 COPY apps/backend/drizzle apps/backend/drizzle
+
+FROM deps AS builder
 
 RUN npm run build --workspace=backend && npm prune --omit=dev
 
