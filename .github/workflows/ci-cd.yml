@@ -33,7 +33,7 @@ jobs:
             cd ${{ vars.EC2_APP_PATH }}
             git pull --ff-only https://x-access-token:$GIT_SECRET@github.com/$REPO.git main
 
-            docker compose build app
-            docker compose run --rm --no-deps app npm run --workspace backend migrate
-            docker compose up -d --force-recreate app
+            docker compose build backend
+            docker compose run --rm --no-deps backend npm run --workspace backend migrate
+            docker compose up -d --force-recreate --remove-orphans backend
             docker image prune -f
