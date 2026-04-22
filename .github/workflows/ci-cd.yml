@@ -28,5 +28,18 @@ jobs:
           script: |
             cd ${{ vars.EC2_APP_PATH }}
             git pull https://x-access-token:$GIT_SECRET@github.com/$REPO.git main
-            docker compose up -d --build
+
+            docker compose --profile generate run --rm generator
+
+            git add apps/backend/drizzle/
+            if ! git diff --staged --quiet; then
+              git config user.email "deploy@motiva.nyxdev.com"
+              git config user.name "Deploy CI/CD"
+              git commit -m "chore: generate migrations [skip ci]"
+              git push https://x-access-token:$GIT_SECRET@github.com/$REPO.git main
+            fi
+
+            docker compose build
+            docker compose --profile migrate run --rm migrator
+            docker compose up -d
             docker image prune -f

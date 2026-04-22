@@ -7,3 +7,23 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     restart: unless-stopped
+
+  generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - ./apps/backend/drizzle:/app/apps/backend/drizzle
+    environment:
+      DATABASE_URL: postgresql://x:x@localhost:5432/x
+    command: npm run generate --workspace=backend
+    profiles: [generate]
+
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: ./apps/backend/.env
+    command: node apps/backend/dist/src/migrate.js
+    profiles: [migrate]

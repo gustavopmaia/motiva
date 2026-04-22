@@ -1,8 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./auth.module";
-import { DrizzleService } from "@infrastructure/database/drizzle.service";
 import { HealthController } from "@infrastructure/http/health.controller";
+import { KmzModule } from "./kmz.module";
 
 @Module({
   imports: [
@@ -11,9 +11,8 @@ import { HealthController } from "@infrastructure/http/health.controller";
       envFilePath: ["apps/backend/.env", ".env"],
     }),
     AuthModule,
+    KmzModule,
   ],
   controllers: [HealthController],
-  providers: [DrizzleService],
-  exports: [DrizzleService],
 })
 export class AppModule {}
