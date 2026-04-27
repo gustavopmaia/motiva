@@ -1,0 +1,32 @@
+.background {
+  position: relative;
+  min-height: 100vh;
+  background-color: var(--color-background-alt);
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.gradient {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 15%;
+  height: 33%;
+  background: var(--color-secondary);
+  opacity: 0.2;
+  pointer-events: none;
+  border-radius: 0 0 0 100%;
+  filter: blur(20px);
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
