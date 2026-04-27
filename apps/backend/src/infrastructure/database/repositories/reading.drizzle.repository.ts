@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { sql } from "drizzle-orm";
 import { Reading, ReadingClassification, ReadingSource } from "@domain/entities/reading.entity";
-import { IReadingRepository } from "@domain/repositories/reading.repository";
+import { ReadingRepository } from "@domain/repositories/reading.repository";
 import { DrizzleService } from "../drizzle.service";
 import { readings } from "../schema";
 
@@ -20,7 +20,7 @@ type ReadingRow = {
 };
 
 @Injectable()
-export class ReadingDrizzleRepository implements IReadingRepository {
+export class ReadingDrizzleRepository implements ReadingRepository {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async save(reading: Reading): Promise<Reading> {

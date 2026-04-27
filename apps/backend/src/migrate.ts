@@ -6,7 +6,7 @@ import { resolve } from "path";
 
 const url = process.env.DATABASE_URL;
 if (!url) {
-  console.error("DATABASE_URL is not set");
+  process.stderr.write("DATABASE_URL is not set\n");
   process.exit(1);
 }
 
@@ -19,11 +19,11 @@ migrate(db, {
   migrationsFolder: existsSync(rootMigrations) ? rootMigrations : localMigrations,
 })
   .then(() => {
-    console.log("Migrations applied successfully");
+    process.stdout.write("Migrations applied successfully\n");
     return client.end();
   })
   .then(() => process.exit(0))
   .catch((err) => {
-    console.error("Migration failed:", err);
+    process.stderr.write(`Migration failed: ${String(err)}\n`);
     process.exit(1);
   });

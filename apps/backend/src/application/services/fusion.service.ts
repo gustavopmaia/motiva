@@ -1,36 +1,31 @@
 import { Injectable } from "@nestjs/common";
-import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { ReadingSource } from "@domain/entities/reading.entity";
-import { IReadingRepository } from "@domain/repositories/reading.repository";
-import { IRoadSegmentRepository } from "@domain/repositories/road-segment.repository";
-import {
-  READING_CREATED_EVENT,
-  ReadingCreatedEvent,
-  SCORE_UPDATED_EVENT,
-  ScoreUpdatedEvent,
-} from "@application/events/readings.events";
+import { ReadingRepository } from "@domain/repositories/reading.repository";
+import { RoadSegmentRepository } from "@domain/repositories/road-segment.repository";
+import { SCORE_UPDATED_EVENT, ScoreUpdatedEvent } from "@application/events/readings.events";
 
 const SOURCE_WEIGHTS: Record<ReadingSource, number> = {
   iot: 0.5,
   vehicle: 0.35,
   satellite: 0.15,
 };
+const SCORE_THRESHOLDS = [30, 55, 80];
 
 @Injectable()
 export class FusionService {
   constructor(
-    private readonly readingRepository: IReadingRepository,
-    private readonly roadSegmentRepository: IRoadSegmentRepository,
+    private readonly readingRepository: ReadingRepository,
+    private readonly roadSegmentRepository: RoadSegmentRepository,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  @OnEvent(READING_CREATED_EVENT)
-  async onReadingCreated(event: ReadingCreatedEvent) {
-    const segment = await this.roadSegmentRepository.findById(event.segmentId);
+  async updateScoreForSegment(segmentId: string) {
+    const segment = await this.roadSegmentRepository.findById(segmentId);
     if (!segment) return;
 
     const readings = await this.readingRepository.findLatestBySourceBySegmentSince(
-      event.segmentId,
+      segmentId,
       new Date(Date.now() - 24 * 60 * 60 * 1000),
     );
 
@@ -49,10 +44,10 @@ export class FusionService {
     const divergence = scores.length > 1 && Math.max(...scores) - Math.min(...scores) > 40;
     const previousScore = segment.scoreCurrent;
 
-    await this.roadSegmentRepository.updateScore(event.segmentId, currentScore, divergence);
+    await this.roadSegmentRepository.updateScore(segmentId, currentScore, divergence);
 
     const previous = previousScore ?? 0;
-    const crossedThreshold = [30, 55, 80].some(
+    const crossedThreshold = SCORE_THRESHOLDS.some(
       (threshold) =>
         (previous < threshold && currentScore >= threshold) ||
         (previous >= threshold && currentScore < threshold),
@@ -60,7 +55,7 @@ export class FusionService {
     if (!crossedThreshold) return;
 
     const scoreUpdatedEvent: ScoreUpdatedEvent = {
-      segmentId: event.segmentId,
+      segmentId,
       previousScore,
       currentScore,
       divergence,

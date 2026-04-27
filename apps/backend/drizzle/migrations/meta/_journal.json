@@ -15,6 +15,20 @@
       "when": 1776864861689,
       "tag": "0001_readings_ingestion",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777313090354,
+      "tag": "0002_gray_purifiers",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777313443619,
+      "tag": "0003_naive_aaron_stack",
+      "breakpoints": true
     }
   ]
 }

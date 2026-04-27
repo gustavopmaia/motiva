@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/commo
 import { ConfigService } from "@nestjs/config";
 import { connect, MqttClient } from "mqtt";
 import { CreateReadingUseCase } from "@application/use-cases/create-reading.use-case";
+import { toIotReadingInput } from "@infrastructure/readings/reading-input.mapper";
 
 @Injectable()
 export class ReadingsMqttHandler implements OnModuleInit, OnModuleDestroy {
@@ -36,24 +37,9 @@ export class ReadingsMqttHandler implements OnModuleInit, OnModuleDestroy {
 
         try {
           const body = JSON.parse(payload.toString()) as Record<string, unknown>;
-          const metadata =
-            body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata)
-              ? { ...(body.metadata as Record<string, unknown>) }
-              : {};
-
-          if (nodeId) metadata.nodeId = nodeId;
-
-          await this.createReading.execute({
-            source: "iot",
-            lat: this.toNumber(body.lat, "lat"),
-            lon: this.toNumber(body.lon, "lon"),
-            heightCm: this.toNumber(body.heightCm, "heightCm"),
-            confidence:
-              body.confidence == null ? undefined : this.toNumber(body.confidence, "confidence"),
-            metadata: Object.keys(metadata).length > 0 ? metadata : null,
-          });
-        } catch (e: unknown) {
-          const message = e instanceof Error ? e.message : "Unknown error";
+          await this.createReading.execute(toIotReadingInput(body, nodeId));
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : "Invalid MQTT payload";
           this.logger.error(`Failed to ingest MQTT reading on ${topic}: ${message}`);
         }
       })();
@@ -70,11 +56,5 @@ export class ReadingsMqttHandler implements OnModuleInit, OnModuleDestroy {
     await new Promise<void>((resolve) => {
       this.client?.end(false, {}, () => resolve());
     });
-  }
-
-  private toNumber(value: unknown, field: string) {
-    const number = Number(value);
-    if (!Number.isFinite(number)) throw new Error(`Invalid ${field}`);
-    return number;
   }
 }

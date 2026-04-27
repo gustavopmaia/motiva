@@ -24,11 +24,21 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   password: text("password").notNull(),
+  role: text("role").notNull().default("field"),
+  stripeCustomerId: text("stripe_customer_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
+});
+
+export const apiKeys = pgTable("api_keys", {
+  id: uuid("id").primaryKey(),
+  name: text("name").notNull(),
+  source: text("source").notNull(),
+  key: text("key").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const roadSegments = pgTable(
@@ -83,9 +93,45 @@ export const readings = pgTable(
   }),
 );
 
-export type UserRecord = typeof users.$inferSelect;
-export type NewUserRecord = typeof users.$inferInsert;
-export type RoadSegmentRecord = typeof roadSegments.$inferSelect;
-export type NewRoadSegmentRecord = typeof roadSegments.$inferInsert;
-export type ReadingRecord = typeof readings.$inferSelect;
-export type NewReadingRecord = typeof readings.$inferInsert;
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: uuid("id").primaryKey(),
+    segmentId: uuid("segment_id")
+      .notNull()
+      .references(() => roadSegments.id),
+    osId: text("os_id"),
+    level: text("level").notNull(),
+    score: doublePrecision("score").notNull(),
+    channels: jsonb("channels").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    alertsSegmentLevelIndex: index("alerts_segment_level_idx").on(table.segmentId, table.level),
+  }),
+);
+
+export const workOrders = pgTable(
+  "work_orders",
+  {
+    id: uuid("id").primaryKey(),
+    segmentId: uuid("segment_id")
+      .notNull()
+      .references(() => roadSegments.id),
+    alertId: uuid("alert_id")
+      .notNull()
+      .references(() => alerts.id),
+    status: text("status").notNull().default("open"),
+    priority: text("priority").notNull(),
+    scoreAtCreation: doublePrecision("score_at_creation").notNull(),
+    team: text("team"),
+    observation: text("observation"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    startedAt: timestamp("started_at"),
+    completedAt: timestamp("completed_at"),
+  },
+  (table) => ({
+    workOrdersStatusIdx: index("work_orders_status_idx").on(table.status),
+    workOrdersSegmentIdx: index("work_orders_segment_idx").on(table.segmentId),
+  }),
+);

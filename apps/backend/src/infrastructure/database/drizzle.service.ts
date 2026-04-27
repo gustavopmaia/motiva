@@ -6,8 +6,8 @@ import * as schema from "./schema";
 
 @Injectable()
 export class DrizzleService implements OnModuleDestroy {
-  private client: postgres.Sql;
-  db: ReturnType<typeof drizzle>;
+  private readonly client: postgres.Sql;
+  readonly db: ReturnType<typeof drizzle>;
 
   constructor(private readonly config: ConfigService) {
     const databaseUrl = this.config.getOrThrow<string>("DATABASE_URL");

@@ -4,6 +4,8 @@ import { EventEmitterModule } from "@nestjs/event-emitter";
 import { AuthModule } from "./auth.module";
 import { RoadSegmentsModule } from "./road-segments.module";
 import { ReadingsModule } from "./readings.module";
+import { AlertsModule } from "./alerts.module";
+import { WorkOrdersModule } from "./work-orders.module";
 import { HealthController } from "@infrastructure/http/health.controller";
 
 @Module({
@@ -16,6 +18,8 @@ import { HealthController } from "@infrastructure/http/health.controller";
     AuthModule,
     RoadSegmentsModule,
     ReadingsModule,
+    AlertsModule,
+    WorkOrdersModule,
   ],
   controllers: [HealthController],
 })

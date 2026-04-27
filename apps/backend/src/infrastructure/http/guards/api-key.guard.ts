@@ -1,23 +1,24 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { createHash } from "crypto";
+import { ApiKeyRepository } from "@domain/repositories/api-key.repository";
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly apiKeyRepository: ApiKeyRepository) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const expectedApiKey =
-      this.config.get<string>("INGESTION_API_KEY") ?? this.config.get<string>("API_KEY");
-
-    if (!expectedApiKey) throw new UnauthorizedException("API key is not configured");
-
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const apiKey = request.headers["x-api-key"];
+    const rawKey: unknown = request.headers["x-api-key"];
 
-    if (typeof apiKey !== "string" || apiKey !== expectedApiKey) {
-      throw new UnauthorizedException("Invalid API key");
+    if (typeof rawKey !== "string" || !rawKey) {
+      throw new UnauthorizedException("Missing API key");
     }
 
+    const keyHash = createHash("sha256").update(rawKey).digest("hex");
+    const apiKey = await this.apiKeyRepository.findByKeyHash(keyHash);
+    if (!apiKey) throw new UnauthorizedException("Invalid API key");
+
+    request.apiKeySource = apiKey.source;
     return true;
   }
 }

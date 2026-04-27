@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { eq, sql } from "drizzle-orm";
-import { IRoadSegmentRepository } from "@domain/repositories/road-segment.repository";
+import { RoadSegmentRepository } from "@domain/repositories/road-segment.repository";
 import { RoadSegment } from "@domain/entities/road-segment.entity";
 import { DrizzleService } from "../drizzle.service";
 import { roadSegments } from "../schema";
@@ -16,7 +16,7 @@ type RoadSegmentRow = {
 };
 
 @Injectable()
-export class RoadSegmentDrizzleRepository implements IRoadSegmentRepository {
+export class RoadSegmentDrizzleRepository implements RoadSegmentRepository {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async findByLocation(lat: number, lon: number): Promise<RoadSegment | null> {
