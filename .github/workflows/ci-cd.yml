@@ -35,5 +35,6 @@ jobs:
 
             docker compose build backend
             docker compose run --rm --no-deps backend npm run --workspace backend migrate
+            docker compose down --remove-orphans
             docker compose up -d --force-recreate --remove-orphans backend
             docker image prune -f
