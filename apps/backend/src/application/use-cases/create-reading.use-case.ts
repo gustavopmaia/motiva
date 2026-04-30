@@ -46,7 +46,7 @@ export class CreateReadingUseCase {
     );
 
     const saved = await this.readingRepository.save(reading);
-    await this.fusionService.updateScoreForSegment(segment.id);
+    await this.fusionService.updateScoreForSegment(segment.id, saved.id);
 
     return saved;
   }

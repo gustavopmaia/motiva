@@ -1,10 +1,16 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  CanActivate,
+  ExecutionContext,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { createHash } from "crypto";
 import { ApiKeyRepository } from "@domain/repositories/api-key.repository";
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
-  constructor(private readonly apiKeyRepository: ApiKeyRepository) {}
+  constructor(@Inject(ApiKeyRepository) private readonly apiKeyRepository: ApiKeyRepository) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();

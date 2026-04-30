@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   NotFoundException,
   Param,
   Patch,
@@ -48,6 +49,7 @@ const VALID_PRIORITIES: WorkOrderPriority[] = ["normal", "urgent", "critical"];
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
   constructor(
+    @Inject(WorkOrderRepository)
     private readonly workOrderRepository: WorkOrderRepository,
     private readonly createWorkOrder: CreateWorkOrderUseCase,
     private readonly updateWorkOrder: UpdateWorkOrderUseCase,

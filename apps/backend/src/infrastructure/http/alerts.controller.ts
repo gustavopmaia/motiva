@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get, Inject, UseGuards } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -15,7 +15,7 @@ import { JwtAuthGuard } from "./guards/jwt.guard";
 @Controller("alerts")
 @UseGuards(JwtAuthGuard)
 export class AlertsController {
-  constructor(private readonly alertRepository: AlertRepository) {}
+  constructor(@Inject(AlertRepository) private readonly alertRepository: AlertRepository) {}
 
   @Get()
   @ApiOperation({

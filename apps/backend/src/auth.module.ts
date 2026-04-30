@@ -14,7 +14,6 @@ import { RolesGuard } from "@infrastructure/http/guards/roles.guard";
 import { ApiKeyGuard } from "@infrastructure/http/guards/api-key.guard";
 import { JwtStrategy } from "@infrastructure/http/strategies/jwt.strategy";
 import { AuthController } from "@infrastructure/http/auth.controller";
-import { SeedService } from "@infrastructure/database/seed.service";
 import { DatabaseModule } from "./database.module";
 
 @Module({
@@ -46,7 +45,6 @@ import { DatabaseModule } from "./database.module";
       useFactory: (apiKeyRepository: ApiKeyRepository) => new CreateApiKeyUseCase(apiKeyRepository),
       inject: [ApiKeyRepository],
     },
-    SeedService,
     JwtStrategy,
     JwtAuthGuard,
     RolesGuard,

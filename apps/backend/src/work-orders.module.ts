@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
-import { WorkOrdersListener } from "@application/listeners/work-orders.listener";
+import { BullModule } from "@nestjs/bullmq";
+import { WorkOrdersProcessor } from "@application/processors/work-orders.processor";
 import { CreateWorkOrderUseCase } from "@application/use-cases/create-work-order.use-case";
 import { UpdateWorkOrderUseCase } from "@application/use-cases/update-work-order.use-case";
 import { CompleteWorkOrderUseCase } from "@application/use-cases/complete-work-order.use-case";
@@ -10,11 +11,12 @@ import { RoadSegmentDrizzleRepository } from "@infrastructure/database/repositor
 import { WorkOrdersController } from "@infrastructure/http/work-orders.controller";
 import { DatabaseModule } from "./database.module";
 import { AuthModule } from "./auth.module";
+import { ALERTS_QUEUE } from "@application/jobs/readings-queue.types";
 
 @Module({
-  imports: [DatabaseModule, AuthModule],
+  imports: [DatabaseModule, AuthModule, BullModule.registerQueue({ name: ALERTS_QUEUE })],
   providers: [
-    WorkOrdersListener,
+    WorkOrdersProcessor,
     { provide: WorkOrderRepository, useClass: WorkOrderDrizzleRepository },
     { provide: RoadSegmentRepository, useClass: RoadSegmentDrizzleRepository },
     {

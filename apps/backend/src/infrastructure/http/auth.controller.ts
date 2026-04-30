@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   NotFoundException,
   Post,
   Request,
@@ -47,6 +48,7 @@ export class AuthController {
     private readonly registerUser: RegisterUserUseCase,
     private readonly login: LoginUseCase,
     private readonly createApiKey: CreateApiKeyUseCase,
+    @Inject(UserRepository)
     private readonly userRepository: UserRepository,
   ) {}
 

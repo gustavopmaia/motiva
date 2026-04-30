@@ -5,9 +5,11 @@ export type WorkOrderFilters = {
   team?: string;
 };
 
-export abstract class WorkOrderRepository {
-  abstract save(workOrder: WorkOrder): Promise<WorkOrder>;
-  abstract findById(id: string): Promise<WorkOrder | null>;
-  abstract findAll(filters: WorkOrderFilters): Promise<WorkOrder[]>;
-  abstract update(workOrder: WorkOrder): Promise<WorkOrder>;
+export const WorkOrderRepository = Symbol("WorkOrderRepository");
+
+export interface WorkOrderRepository {
+  save(workOrder: WorkOrder): Promise<WorkOrder>;
+  findById(id: string): Promise<WorkOrder | null>;
+  findAll(filters: WorkOrderFilters): Promise<WorkOrder[]>;
+  update(workOrder: WorkOrder): Promise<WorkOrder>;
 }

@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
-import { EventEmitterModule } from "@nestjs/event-emitter";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { BullModule } from "@nestjs/bullmq";
 import { AuthModule } from "./auth.module";
 import { ReadingsModule } from "./readings.module";
 import { AlertsModule } from "./alerts.module";
@@ -13,7 +13,12 @@ import { HealthController } from "@infrastructure/http/health.controller";
       isGlobal: true,
       envFilePath: ["apps/backend/.env", ".env"],
     }),
-    EventEmitterModule.forRoot(),
+    BullModule.forRootAsync({
+      useFactory: (config: ConfigService) => ({
+        connection: { url: config.getOrThrow<string>("REDIS_URL") },
+      }),
+      inject: [ConfigService],
+    }),
     AuthModule,
     ReadingsModule,
     AlertsModule,

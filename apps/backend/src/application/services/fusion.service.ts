@@ -1,9 +1,11 @@
-import { Injectable } from "@nestjs/common";
-import { EventEmitter2 } from "@nestjs/event-emitter";
+import { Inject, Injectable } from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
 import { ReadingSource } from "@domain/entities/reading.entity";
 import { ReadingRepository } from "@domain/repositories/reading.repository";
 import { RoadSegmentRepository } from "@domain/repositories/road-segment.repository";
-import { SCORE_UPDATED_EVENT, ScoreUpdatedEvent } from "@application/events/readings.events";
+import { AlertLevel } from "@domain/entities/alert.entity";
+import { READINGS_QUEUE, ProcessReadingResultJob } from "@application/jobs/readings-queue.types";
 
 const SOURCE_WEIGHTS: Record<ReadingSource, number> = {
   iot: 0.5,
@@ -12,15 +14,25 @@ const SOURCE_WEIGHTS: Record<ReadingSource, number> = {
 };
 const SCORE_THRESHOLDS = [30, 55, 80];
 
+function scoreToLevel(score: number): AlertLevel | null {
+  if (score >= 80) return "critical";
+  if (score >= 55) return "urgent";
+  if (score >= 30) return "attention";
+  return null;
+}
+
 @Injectable()
 export class FusionService {
   constructor(
+    @Inject(ReadingRepository)
     private readonly readingRepository: ReadingRepository,
+    @Inject(RoadSegmentRepository)
     private readonly roadSegmentRepository: RoadSegmentRepository,
-    private readonly eventEmitter: EventEmitter2,
+    @InjectQueue(READINGS_QUEUE)
+    private readonly readingsQueue: Queue,
   ) {}
 
-  async updateScoreForSegment(segmentId: string) {
+  async updateScoreForSegment(segmentId: string, readingId: string) {
     const segment = await this.roadSegmentRepository.findById(segmentId);
     if (!segment) return;
 
@@ -54,13 +66,10 @@ export class FusionService {
     );
     if (!crossedThreshold) return;
 
-    const scoreUpdatedEvent: ScoreUpdatedEvent = {
-      segmentId,
-      previousScore,
-      currentScore,
-      divergence,
-    };
+    const level = scoreToLevel(currentScore);
+    if (!level) return;
 
-    this.eventEmitter.emit(SCORE_UPDATED_EVENT, scoreUpdatedEvent);
+    const job: ProcessReadingResultJob = { segmentId, score: currentScore, level, readingId };
+    await this.readingsQueue.add("process-reading-result", job);
   }
 }
