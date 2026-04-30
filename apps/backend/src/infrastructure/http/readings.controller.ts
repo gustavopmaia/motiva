@@ -1,9 +1,18 @@
-import { BadRequestException, Body, Controller, Post, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  ForbiddenException,
+  Post,
+  Request,
+  UseGuards,
+} from "@nestjs/common";
 import {
   ApiBadRequestResponse,
   ApiBody,
   ApiCreatedResponse,
   ApiExtraModels,
+  ApiForbiddenResponse,
   ApiOperation,
   ApiSecurity,
   ApiTags,
@@ -11,6 +20,7 @@ import {
   getSchemaPath,
 } from "@nestjs/swagger";
 import { CreateReadingUseCase } from "@application/use-cases/create-reading.use-case";
+import { ApiKeySource } from "@domain/entities/api-key.entity";
 import { toCreateReadingInput } from "@infrastructure/readings/reading-input.mapper";
 import {
   IotReadingRequestDto,
@@ -19,6 +29,10 @@ import {
   VehicleReadingRequestDto,
 } from "./dto/readings.docs";
 import { ApiKeyGuard } from "./guards/api-key.guard";
+
+type ApiKeyRequest = {
+  apiKeySource: ApiKeySource;
+};
 
 @ApiTags("Readings")
 @ApiSecurity("api-key")
@@ -51,13 +65,23 @@ export class ReadingsController {
   @ApiBadRequestResponse({
     description: "The reading payload is invalid or no road segment can be matched.",
   })
+  @ApiForbiddenResponse({
+    description: "The authenticated API key source does not match the reading source.",
+  })
   @ApiUnauthorizedResponse({ description: "The ingestion API key is missing or invalid." })
-  async create(@Body() body: Record<string, unknown>) {
+  async create(@Body() body: Record<string, unknown>, @Request() req: ApiKeyRequest) {
     try {
       if (!body || typeof body !== "object") throw new Error("Invalid payload");
 
-      return await this.createReading.execute(toCreateReadingInput(body));
+      const input = toCreateReadingInput(body);
+      if (req.apiKeySource !== input.source) {
+        throw new ForbiddenException("API key source does not match reading source");
+      }
+
+      return await this.createReading.execute(input);
     } catch (error: unknown) {
+      if (error instanceof ForbiddenException) throw error;
+
       const message = error instanceof Error ? error.message : "Invalid payload";
       throw new BadRequestException(message);
     }

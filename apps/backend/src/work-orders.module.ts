@@ -6,16 +6,17 @@ import { CompleteWorkOrderUseCase } from "@application/use-cases/complete-work-o
 import { WorkOrderRepository } from "@domain/repositories/work-order.repository";
 import { RoadSegmentRepository } from "@domain/repositories/road-segment.repository";
 import { WorkOrderDrizzleRepository } from "@infrastructure/database/repositories/work-order.drizzle.repository";
+import { RoadSegmentDrizzleRepository } from "@infrastructure/database/repositories/road-segment.drizzle.repository";
 import { WorkOrdersController } from "@infrastructure/http/work-orders.controller";
 import { DatabaseModule } from "./database.module";
 import { AuthModule } from "./auth.module";
-import { RoadSegmentsModule } from "./road-segments.module";
 
 @Module({
-  imports: [DatabaseModule, AuthModule, RoadSegmentsModule],
+  imports: [DatabaseModule, AuthModule],
   providers: [
     WorkOrdersListener,
     { provide: WorkOrderRepository, useClass: WorkOrderDrizzleRepository },
+    { provide: RoadSegmentRepository, useClass: RoadSegmentDrizzleRepository },
     {
       provide: CreateWorkOrderUseCase,
       useFactory: (workOrderRepository: WorkOrderRepository) =>

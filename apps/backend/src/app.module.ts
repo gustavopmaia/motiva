@@ -2,7 +2,6 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { AuthModule } from "./auth.module";
-import { RoadSegmentsModule } from "./road-segments.module";
 import { ReadingsModule } from "./readings.module";
 import { AlertsModule } from "./alerts.module";
 import { WorkOrdersModule } from "./work-orders.module";
@@ -16,7 +15,6 @@ import { HealthController } from "@infrastructure/http/health.controller";
     }),
     EventEmitterModule.forRoot(),
     AuthModule,
-    RoadSegmentsModule,
     ReadingsModule,
     AlertsModule,
     WorkOrdersModule,

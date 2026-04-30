@@ -4,18 +4,19 @@ import { CreateReadingUseCase } from "@application/use-cases/create-reading.use-
 import { ReadingRepository } from "@domain/repositories/reading.repository";
 import { RoadSegmentRepository } from "@domain/repositories/road-segment.repository";
 import { ReadingDrizzleRepository } from "@infrastructure/database/repositories/reading.drizzle.repository";
+import { RoadSegmentDrizzleRepository } from "@infrastructure/database/repositories/road-segment.drizzle.repository";
 import { ReadingsController } from "@infrastructure/http/readings.controller";
 import { ReadingsMqttHandler } from "@infrastructure/mqtt/readings.mqtt.handler";
 import { DatabaseModule } from "./database.module";
-import { RoadSegmentsModule } from "./road-segments.module";
 import { AuthModule } from "./auth.module";
 
 @Module({
-  imports: [DatabaseModule, RoadSegmentsModule, AuthModule],
+  imports: [DatabaseModule, AuthModule],
   providers: [
     FusionService,
     ReadingsMqttHandler,
     { provide: ReadingRepository, useClass: ReadingDrizzleRepository },
+    { provide: RoadSegmentRepository, useClass: RoadSegmentDrizzleRepository },
     {
       provide: CreateReadingUseCase,
       useFactory: (

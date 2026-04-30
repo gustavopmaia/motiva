@@ -30,7 +30,7 @@ import { JwtAuthGuard } from "@infrastructure/http/guards/jwt.guard";
 import { RolesGuard } from "@infrastructure/http/guards/roles.guard";
 import { Roles } from "@infrastructure/http/decorators/roles.decorator";
 import { AuthenticationError } from "@application/errors";
-import { JwtPayload } from "@application/security/jwt";
+import { JwtPayload } from "@application/security/jwt-payload";
 import {
   CreateApiKeyRequestDto,
   CreateApiKeyResponseDto,
