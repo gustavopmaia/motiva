@@ -14,8 +14,8 @@ const config: Config = {
   url: "http://localhost:3001",
   baseUrl: "/",
 
-  organizationName: "motiva",
-  projectName: "motiva",
+  organizationName: "cultiva",
+  projectName: "cultiva",
 
   onBrokenLinks: "throw",
 
@@ -45,9 +45,9 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: "Motiva",
+      title: "Cultiva",
       logo: {
-        alt: "Motiva",
+        alt: "Cultiva",
         src: "img/logo.svg",
       },
       items: [
@@ -61,7 +61,7 @@ const config: Config = {
     },
     footer: {
       style: "dark",
-      copyright: `© ${new Date().getFullYear()} Motiva`,
+      copyright: `© ${new Date().getFullYear()} Cultiva`,
     },
     prism: {
       theme: prismThemes.github,

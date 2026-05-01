@@ -10,7 +10,7 @@ Concessionárias de rodovias têm obrigação contratual de manter a vegetação
 
 O processo hoje é manual e reativo: inspetores percorrem os trechos, anotam onde a vegetação está alta e acionam uma equipe dias depois. Até a equipe chegar, o problema cresceu.
 
-## O que o Roçadinha faz
+## O que o Cultiva faz
 
 O sistema funde leituras de três fontes — sensores IoT fixos nas margens, câmeras embarcadas em veículos de patrulha e imagens de satélite Sentinel-2 — em um score único por trecho de rodovia. Quando o score cruza um limiar, o sistema abre um alerta e cria uma ordem de serviço automaticamente. O módulo de despacho agrupa as ordens abertas em rotas otimizadas por equipe de campo.
 

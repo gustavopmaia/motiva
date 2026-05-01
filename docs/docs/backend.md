@@ -38,7 +38,7 @@ O servidor sobe na porta `3000` por padrão.
 ## Variáveis de ambiente
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/rocadinha
+DATABASE_URL=postgresql://user:password@localhost:5432/cultiva
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=seu-segredo-forte-aqui
 PORT=3000
