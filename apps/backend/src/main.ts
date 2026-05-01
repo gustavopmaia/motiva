@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe, VersioningType } from "@nestjs/common";
+import { Logger, VersioningType } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { setupDocs } from "@infrastructure/http/docs";
@@ -9,7 +9,6 @@ async function bootstrap() {
   app.enableCors();
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   setupDocs(app);
 
   const port = process.env.PORT || 3000;

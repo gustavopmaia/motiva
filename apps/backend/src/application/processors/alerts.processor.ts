@@ -28,12 +28,13 @@ export class AlertsProcessor extends WorkerHost {
     const { segmentId, score, level, readingId } = job.data;
     try {
       const existing = await this.alertRepository.findOpenBySegmentAndLevel(segmentId, level);
-      if (existing) return;
+      const alert =
+        existing ??
+        (await this.alertRepository.save(
+          new Alert(randomUUID(), segmentId, null, level, score, {}),
+        ));
 
-      const alert = new Alert(randomUUID(), segmentId, null, level, score, {});
-      const saved = await this.alertRepository.save(alert);
-
-      const payload: CreateWorkOrderJob = { segmentId, score, level, readingId, alertId: saved.id };
+      const payload: CreateWorkOrderJob = { segmentId, score, level, readingId, alertId: alert.id };
       await this.alertsQueue.add("create-work-order", payload);
     } catch (error: unknown) {
       this.logger.error(

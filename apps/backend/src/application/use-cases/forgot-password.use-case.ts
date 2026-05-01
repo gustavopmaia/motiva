@@ -1,3 +1,4 @@
+import { Injectable, Inject, Logger } from "@nestjs/common";
 import { createHash, randomUUID } from "crypto";
 import { UserRepository } from "@domain/repositories/user.repository";
 import { PasswordResetTokenRepository } from "@domain/repositories/password-reset-token.repository";
@@ -8,9 +9,14 @@ const RESET_CODE = "112233";
 const RESET_WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 3;
 
+@Injectable()
 export class ForgotPasswordUseCase {
+  private readonly logger = new Logger(ForgotPasswordUseCase.name);
+
   constructor(
+    @Inject(UserRepository)
     private readonly userRepository: UserRepository,
+    @Inject(PasswordResetTokenRepository)
     private readonly tokenRepository: PasswordResetTokenRepository,
   ) {}
 
@@ -35,6 +41,6 @@ export class ForgotPasswordUseCase {
     );
 
     await this.tokenRepository.save(token);
-    console.log(`[PasswordReset] code ${RESET_CODE} for ${email}`);
+    this.logger.log(`[PasswordReset] code ${RESET_CODE} for ${email}`);
   }
 }

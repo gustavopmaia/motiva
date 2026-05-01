@@ -1,3 +1,4 @@
+import { Injectable, Inject } from "@nestjs/common";
 import { createHash, timingSafeEqual } from "crypto";
 import * as argon2 from "argon2";
 import { UserRepository } from "@domain/repositories/user.repository";
@@ -6,9 +7,12 @@ import { User } from "@domain/entities/user.entity";
 import { InvalidOperationError } from "@application/errors";
 import { validatePasswordStrength } from "@application/security/password-strength";
 
+@Injectable()
 export class ResetPasswordUseCase {
   constructor(
+    @Inject(UserRepository)
     private readonly userRepository: UserRepository,
+    @Inject(PasswordResetTokenRepository)
     private readonly tokenRepository: PasswordResetTokenRepository,
   ) {}
 

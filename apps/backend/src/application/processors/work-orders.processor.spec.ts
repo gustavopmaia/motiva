@@ -6,9 +6,10 @@ import { CreateWorkOrderJob } from "@application/jobs/readings-queue.types";
 jest.spyOn(Logger.prototype, "error").mockImplementation(() => {});
 
 const makeProcessor = () => {
-  const createWorkOrder = { execute: jest.fn().mockResolvedValue(undefined) };
-  const processor = new (WorkOrdersProcessor as any)(createWorkOrder);
-  return { processor, createWorkOrder };
+  const createWorkOrder = { execute: jest.fn().mockResolvedValue({ id: "wo-1" }) };
+  const alertRepository = { updateOsId: jest.fn().mockResolvedValue(undefined) };
+  const processor = new (WorkOrdersProcessor as any)(createWorkOrder, alertRepository);
+  return { processor, createWorkOrder, alertRepository };
 };
 
 const makeJob = (data: CreateWorkOrderJob) => ({ data }) as Job<CreateWorkOrderJob>;

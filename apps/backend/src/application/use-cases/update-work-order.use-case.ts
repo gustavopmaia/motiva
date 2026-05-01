@@ -1,3 +1,4 @@
+import { Injectable, Inject } from "@nestjs/common";
 import { WorkOrder, WorkOrderStatus } from "@domain/entities/work-order.entity";
 import { WorkOrderRepository } from "@domain/repositories/work-order.repository";
 import { InvalidOperationError, NotFoundError } from "@application/errors";
@@ -8,8 +9,12 @@ export type UpdateWorkOrderInput = {
   observation?: string | null;
 };
 
+@Injectable()
 export class UpdateWorkOrderUseCase {
-  constructor(private readonly workOrderRepository: WorkOrderRepository) {}
+  constructor(
+    @Inject(WorkOrderRepository)
+    private readonly workOrderRepository: WorkOrderRepository,
+  ) {}
 
   async execute(id: string, input: UpdateWorkOrderInput): Promise<WorkOrder> {
     const existing = await this.workOrderRepository.findById(id);

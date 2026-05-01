@@ -1,3 +1,4 @@
+import { Injectable, Inject } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { Reading, ReadingClassification } from "@domain/entities/reading.entity";
 import { ReadingRepository } from "@domain/repositories/reading.repository";
@@ -12,9 +13,12 @@ const VEHICLE_SCORE: Record<ReadingClassification, number> = {
   urgent: 85,
 };
 
+@Injectable()
 export class CreateReadingUseCase {
   constructor(
+    @Inject(RoadSegmentRepository)
     private readonly roadSegmentRepository: RoadSegmentRepository,
+    @Inject(ReadingRepository)
     private readonly readingRepository: ReadingRepository,
     private readonly fusionService: FusionService,
   ) {}
@@ -60,6 +64,8 @@ export class CreateReadingUseCase {
       return clamp(VEHICLE_SCORE[input.classification] * confidence, 0, 100);
     }
 
+    // NDVI healthy vegetation range: 0.2 (sparse) → 0.7 (dense) → mapped to 0–100.
+    // Linear scale: score = (ndvi - 0.2) * 200, clamped to [0, 100].
     return clamp((input.ndvi - 0.2) * 200, 0, 100);
   }
 }

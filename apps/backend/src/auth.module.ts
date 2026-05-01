@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { JwtModule, JwtService } from "@nestjs/jwt";
-import { PassportModule } from "@nestjs/passport";
+import { JwtModule } from "@nestjs/jwt";
 import { RegisterUserUseCase } from "@application/use-cases/register-user.use-case";
 import { LoginUseCase } from "@application/use-cases/login.use-case";
 import { CreateApiKeyUseCase } from "@application/use-cases/create-api-key.use-case";
@@ -16,14 +15,12 @@ import { PasswordResetTokenDrizzleRepository } from "@infrastructure/database/re
 import { JwtAuthGuard } from "@infrastructure/http/guards/jwt.guard";
 import { RolesGuard } from "@infrastructure/http/guards/roles.guard";
 import { ApiKeyGuard } from "@infrastructure/http/guards/api-key.guard";
-import { JwtStrategy } from "@infrastructure/http/strategies/jwt.strategy";
 import { AuthController } from "@infrastructure/http/auth.controller";
 import { DatabaseModule } from "./database.module";
 
 @Module({
   imports: [
     DatabaseModule,
-    PassportModule.register({ defaultStrategy: "jwt" }),
     JwtModule.registerAsync({
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>("JWT_SECRET"),
@@ -33,35 +30,11 @@ import { DatabaseModule } from "./database.module";
     }),
   ],
   providers: [
-    {
-      provide: RegisterUserUseCase,
-      useFactory: (userRepository: UserRepository) => new RegisterUserUseCase(userRepository),
-      inject: [UserRepository],
-    },
-    {
-      provide: LoginUseCase,
-      useFactory: (userRepository: UserRepository, jwtService: JwtService) =>
-        new LoginUseCase(userRepository, jwtService),
-      inject: [UserRepository, JwtService],
-    },
-    {
-      provide: CreateApiKeyUseCase,
-      useFactory: (apiKeyRepository: ApiKeyRepository) => new CreateApiKeyUseCase(apiKeyRepository),
-      inject: [ApiKeyRepository],
-    },
-    {
-      provide: ForgotPasswordUseCase,
-      useFactory: (userRepository: UserRepository, tokenRepository: PasswordResetTokenRepository) =>
-        new ForgotPasswordUseCase(userRepository, tokenRepository),
-      inject: [UserRepository, PasswordResetTokenRepository],
-    },
-    {
-      provide: ResetPasswordUseCase,
-      useFactory: (userRepository: UserRepository, tokenRepository: PasswordResetTokenRepository) =>
-        new ResetPasswordUseCase(userRepository, tokenRepository),
-      inject: [UserRepository, PasswordResetTokenRepository],
-    },
-    JwtStrategy,
+    RegisterUserUseCase,
+    LoginUseCase,
+    CreateApiKeyUseCase,
+    ForgotPasswordUseCase,
+    ResetPasswordUseCase,
     JwtAuthGuard,
     RolesGuard,
     ApiKeyGuard,

@@ -36,6 +36,13 @@
       "when": 1777604708044,
       "tag": "0004_puzzling_ogun",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1746057600000,
+      "tag": "0005_alert_closed_at",
+      "breakpoints": true
     }
   ]
 }

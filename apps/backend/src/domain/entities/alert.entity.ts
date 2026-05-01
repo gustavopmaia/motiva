@@ -9,5 +9,6 @@ export class Alert {
     public readonly score: number,
     public readonly channels: Record<string, unknown>,
     public readonly createdAt: Date = new Date(),
+    public readonly closedAt: Date | null = null,
   ) {}
 }

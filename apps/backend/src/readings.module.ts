@@ -19,15 +19,7 @@ import { READINGS_QUEUE } from "@application/jobs/readings-queue.types";
     ReadingsMqttHandler,
     { provide: ReadingRepository, useClass: ReadingDrizzleRepository },
     { provide: RoadSegmentRepository, useClass: RoadSegmentDrizzleRepository },
-    {
-      provide: CreateReadingUseCase,
-      useFactory: (
-        roadSegmentRepository: RoadSegmentRepository,
-        readingRepository: ReadingRepository,
-        fusionService: FusionService,
-      ) => new CreateReadingUseCase(roadSegmentRepository, readingRepository, fusionService),
-      inject: [RoadSegmentRepository, ReadingRepository, FusionService],
-    },
+    CreateReadingUseCase,
   ],
   controllers: [ReadingsController],
 })

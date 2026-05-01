@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import { Alert, AlertLevel } from "@domain/entities/alert.entity";
 import { AlertRepository } from "@domain/repositories/alert.repository";
 import { DrizzleService } from "../drizzle.service";
@@ -20,6 +20,7 @@ export class AlertDrizzleRepository implements AlertRepository {
         score: alert.score,
         channels: alert.channels,
         createdAt: alert.createdAt,
+        closedAt: alert.closedAt,
       })
       .returning();
 
@@ -30,7 +31,7 @@ export class AlertDrizzleRepository implements AlertRepository {
     const [row] = await this.drizzle.db
       .select()
       .from(alerts)
-      .where(and(eq(alerts.segmentId, segmentId), eq(alerts.level, level)))
+      .where(and(eq(alerts.segmentId, segmentId), eq(alerts.level, level), isNull(alerts.closedAt)))
       .limit(1);
 
     if (!row) return null;
@@ -44,6 +45,14 @@ export class AlertDrizzleRepository implements AlertRepository {
     return rows.map((row) => this.toEntity(row));
   }
 
+  async close(id: string, closedAt: Date): Promise<void> {
+    await this.drizzle.db.update(alerts).set({ closedAt }).where(eq(alerts.id, id));
+  }
+
+  async updateOsId(id: string, osId: string): Promise<void> {
+    await this.drizzle.db.update(alerts).set({ osId }).where(eq(alerts.id, id));
+  }
+
   private toEntity(row: typeof alerts.$inferSelect): Alert {
     return new Alert(
       row.id,
@@ -53,6 +62,7 @@ export class AlertDrizzleRepository implements AlertRepository {
       row.score,
       (row.channels as Record<string, unknown>) ?? {},
       row.createdAt,
+      row.closedAt,
     );
   }
 }

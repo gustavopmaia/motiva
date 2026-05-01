@@ -1,3 +1,4 @@
+import { Injectable, Inject } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { WorkOrder, WorkOrderPriority } from "@domain/entities/work-order.entity";
 import { WorkOrderRepository } from "@domain/repositories/work-order.repository";
@@ -11,8 +12,12 @@ export type CreateWorkOrderInput = {
   observation?: string | null;
 };
 
+@Injectable()
 export class CreateWorkOrderUseCase {
-  constructor(private readonly workOrderRepository: WorkOrderRepository) {}
+  constructor(
+    @Inject(WorkOrderRepository)
+    private readonly workOrderRepository: WorkOrderRepository,
+  ) {}
 
   async execute(input: CreateWorkOrderInput): Promise<WorkOrder> {
     const workOrder = new WorkOrder(

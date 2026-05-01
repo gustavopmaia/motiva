@@ -119,6 +119,14 @@ export class CreateApiKeyRequestDto {
   source!: string;
 }
 
+export class RegisterResponseDto {
+  @ApiProperty({
+    description: "Unique identifier of the newly created user.",
+    example: "4f1a6e8f-6f8a-4d44-9c2a-9e75a6d574df",
+  })
+  id!: string;
+}
+
 export class CreateApiKeyResponseDto {
   @ApiProperty({
     description: "Unique API key record identifier.",

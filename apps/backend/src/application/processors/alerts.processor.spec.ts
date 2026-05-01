@@ -32,7 +32,7 @@ describe("AlertsProcessor", () => {
     );
   });
 
-  it("deve ignorar quando já existe alerta aberto para o mesmo segmento e nível", async () => {
+  it("deve reenfileirar work order com o alerta existente (idempotente)", async () => {
     const existing = new Alert("a-1", "seg-1", null, "urgent", 60, {});
     const { processor, alertsQueue } = makeProcessor(existing);
 
@@ -40,7 +40,10 @@ describe("AlertsProcessor", () => {
       makeJob({ segmentId: "seg-1", score: 62, level: "urgent", readingId: "r-2" }),
     );
 
-    expect(alertsQueue.add).not.toHaveBeenCalled();
+    expect(alertsQueue.add).toHaveBeenCalledWith(
+      "create-work-order",
+      expect.objectContaining({ alertId: "a-1", segmentId: "seg-1", level: "urgent" }),
+    );
   });
 
   it("deve relançar o erro quando o repositório falha", async () => {

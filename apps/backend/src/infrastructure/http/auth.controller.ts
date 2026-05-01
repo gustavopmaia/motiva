@@ -47,6 +47,7 @@ import {
   LoginRequestDto,
   LoginResponseDto,
   RegisterRequestDto,
+  RegisterResponseDto,
   ResetPasswordRequestDto,
   UserProfileResponseDto,
 } from "./dto/auth.docs";
@@ -73,7 +74,7 @@ export class AuthController {
   })
   @ApiBody({ type: RegisterRequestDto, description: "User registration payload." })
   @ApiCreatedResponse({
-    type: UserProfileResponseDto,
+    type: RegisterResponseDto,
     description: "User account created successfully.",
   })
   @ApiBadRequestResponse({

@@ -1,10 +1,13 @@
+import { Injectable, Inject } from "@nestjs/common";
 import * as argon2 from "argon2";
 import { JwtService } from "@nestjs/jwt";
 import { UserRepository } from "@domain/repositories/user.repository";
 import { AuthenticationError } from "@application/errors";
 
+@Injectable()
 export class LoginUseCase {
   constructor(
+    @Inject(UserRepository)
     private readonly userRepository: UserRepository,
     private readonly jwtService: JwtService,
   ) {}

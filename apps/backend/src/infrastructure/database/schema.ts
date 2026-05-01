@@ -104,6 +104,7 @@ export const alerts = pgTable(
     score: doublePrecision("score").notNull(),
     channels: jsonb("channels").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    closedAt: timestamp("closed_at"),
   },
   (table) => ({
     alertsSegmentLevelIndex: index("alerts_segment_level_idx").on(table.segmentId, table.level),

@@ -1,12 +1,17 @@
+import { Injectable, Inject } from "@nestjs/common";
+import { eq } from "drizzle-orm";
 import { WorkOrder } from "@domain/entities/work-order.entity";
 import { WorkOrderRepository } from "@domain/repositories/work-order.repository";
-import { RoadSegmentRepository } from "@domain/repositories/road-segment.repository";
+import { DrizzleService } from "@infrastructure/database/drizzle.service";
+import { workOrders, roadSegments, alerts } from "@infrastructure/database/schema";
 import { InvalidOperationError, NotFoundError } from "@application/errors";
 
+@Injectable()
 export class CompleteWorkOrderUseCase {
   constructor(
+    @Inject(WorkOrderRepository)
     private readonly workOrderRepository: WorkOrderRepository,
-    private readonly roadSegmentRepository: RoadSegmentRepository,
+    private readonly drizzle: DrizzleService,
   ) {}
 
   async execute(id: string): Promise<WorkOrder> {
@@ -16,7 +21,22 @@ export class CompleteWorkOrderUseCase {
       throw new InvalidOperationError("Work order is already completed");
     }
 
-    const completed = new WorkOrder(
+    const now = new Date();
+    const startedAt = existing.startedAt ?? now;
+
+    await this.drizzle.db.transaction(async (tx) => {
+      await tx
+        .update(workOrders)
+        .set({ status: "completed", startedAt, completedAt: now })
+        .where(eq(workOrders.id, id));
+      await tx
+        .update(roadSegments)
+        .set({ scoreCurrent: 0, scoreDivergent: false })
+        .where(eq(roadSegments.id, existing.segmentId));
+      await tx.update(alerts).set({ closedAt: now }).where(eq(alerts.id, existing.alertId));
+    });
+
+    return new WorkOrder(
       existing.id,
       existing.segmentId,
       existing.alertId,
@@ -26,13 +46,8 @@ export class CompleteWorkOrderUseCase {
       existing.team,
       existing.observation,
       existing.createdAt,
-      existing.startedAt ?? new Date(),
-      new Date(),
+      startedAt,
+      now,
     );
-
-    const saved = await this.workOrderRepository.update(completed);
-    await this.roadSegmentRepository.updateScore(existing.segmentId, 0, false);
-
-    return saved;
   }
 }

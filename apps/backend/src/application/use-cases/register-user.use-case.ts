@@ -1,3 +1,4 @@
+import { Injectable, Inject } from "@nestjs/common";
 import * as argon2 from "argon2";
 import { randomUUID } from "crypto";
 import { User, UserRole } from "@domain/entities/user.entity";
@@ -5,8 +6,12 @@ import { UserRepository } from "@domain/repositories/user.repository";
 import { AuthorizationError, DuplicateResourceError } from "@application/errors";
 import { validatePasswordStrength } from "@application/security/password-strength";
 
+@Injectable()
 export class RegisterUserUseCase {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    @Inject(UserRepository)
+    private readonly userRepository: UserRepository,
+  ) {}
 
   async execute(
     email: string,

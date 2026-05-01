@@ -19,6 +19,27 @@ type RoadSegmentRow = {
 export class RoadSegmentDrizzleRepository implements RoadSegmentRepository {
   constructor(private readonly drizzle: DrizzleService) {}
 
+  async findAll(): Promise<RoadSegment[]> {
+    const rows = await this.drizzle.db.execute<RoadSegmentRow>(sql`
+      SELECT id, road_name, km_start, km_end, mowing_type, score_current, score_divergent
+      FROM road_segments
+      ORDER BY road_name, km_start
+    `);
+
+    return rows.map(
+      (row) =>
+        new RoadSegment(
+          row.id,
+          row.road_name,
+          Number(row.km_start),
+          Number(row.km_end),
+          row.mowing_type,
+          row.score_current,
+          row.score_divergent,
+        ),
+    );
+  }
+
   async findByLocation(lat: number, lon: number): Promise<RoadSegment | null> {
     const rows = await this.drizzle.db.execute<RoadSegmentRow>(sql`
       SELECT id, road_name, km_start, km_end, mowing_type, score_current, score_divergent

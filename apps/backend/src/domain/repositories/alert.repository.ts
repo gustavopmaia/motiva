@@ -6,4 +6,6 @@ export interface AlertRepository {
   save(alert: Alert): Promise<Alert>;
   findOpenBySegmentAndLevel(segmentId: string, level: AlertLevel): Promise<Alert | null>;
   findAll(): Promise<Alert[]>;
+  close(id: string, closedAt: Date): Promise<void>;
+  updateOsId(id: string, osId: string): Promise<void>;
 }
