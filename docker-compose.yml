@@ -22,3 +22,10 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
+  docs:
+    build:
+      context: ./docs
+    container_name: motiva-docs
+    ports:
+      - "0.0.0.0:3001:3001"
+    restart: unless-stopped
