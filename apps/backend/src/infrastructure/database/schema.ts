@@ -25,7 +25,6 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   password: text("password").notNull(),
   role: text("role").notNull().default("field"),
-  stripeCustomerId: text("stripe_customer_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -133,5 +132,25 @@ export const workOrders = pgTable(
   (table) => ({
     workOrdersStatusIdx: index("work_orders_status_idx").on(table.status),
     workOrdersSegmentIdx: index("work_orders_segment_idx").on(table.segmentId),
+  }),
+);
+
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    passwordResetUserCreatedAtIdx: index("password_reset_user_created_at_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
   }),
 );

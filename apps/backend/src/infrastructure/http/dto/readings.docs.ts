@@ -145,50 +145,10 @@ export class ReadingResponseDto {
   source!: string;
 
   @ApiProperty({
-    description: "Measured vegetation height for IoT readings, or null for other sources.",
-    nullable: true,
-    example: 42,
-  })
-  heightCm!: number | null;
-
-  @ApiProperty({
-    description: "Vehicle classification for vehicle readings, or null for other sources.",
-    enum: ["ok", "attention", "urgent"],
-    nullable: true,
-    example: null,
-  })
-  classification!: string | null;
-
-  @ApiProperty({
-    description: "Normalized source confidence used in score calculation.",
-    example: 0.92,
-  })
-  confidence!: number;
-
-  @ApiProperty({
     description: "Calculated vegetation risk score from 0 to 100.",
     example: 58.8,
   })
   score!: number;
-
-  @ApiProperty({
-    description: "Latitude where the reading was captured.",
-    example: -23.55052,
-  })
-  lat!: number;
-
-  @ApiProperty({
-    description: "Longitude where the reading was captured.",
-    example: -46.633308,
-  })
-  lon!: number;
-
-  @ApiProperty({
-    description: "Source-specific metadata stored with the reading.",
-    nullable: true,
-    example: { nodeId: "node-sp-001" },
-  })
-  metadata!: Record<string, unknown> | null;
 
   @ApiProperty({
     description: "Date and time when the reading was persisted.",

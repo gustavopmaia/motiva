@@ -33,16 +33,6 @@ export class ApiKeyDrizzleRepository implements ApiKeyRepository {
     return this.toEntity(row);
   }
 
-  async findBySource(source: ApiKeySource): Promise<ApiKey | null> {
-    const [row] = await this.drizzle.db
-      .select()
-      .from(apiKeys)
-      .where(eq(apiKeys.source, source))
-      .limit(1);
-    if (!row) return null;
-    return this.toEntity(row);
-  }
-
   private toEntity(row: typeof apiKeys.$inferSelect): ApiKey {
     return new ApiKey(row.id, row.name, row.source as ApiKeySource, row.key, row.createdAt);
   }

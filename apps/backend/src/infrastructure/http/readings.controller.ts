@@ -78,7 +78,14 @@ export class ReadingsController {
         throw new ForbiddenException("API key source does not match reading source");
       }
 
-      return await this.createReading.execute(input);
+      const r = await this.createReading.execute(input);
+      return {
+        id: r.id,
+        segmentId: r.segmentId,
+        source: r.source,
+        score: r.score,
+        createdAt: r.createdAt,
+      };
     } catch (error: unknown) {
       if (error instanceof ForbiddenException) throw error;
 

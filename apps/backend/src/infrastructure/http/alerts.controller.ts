@@ -31,6 +31,14 @@ export class AlertsController {
     description: "The JWT access token is missing, invalid, expired, or cannot be verified.",
   })
   async findAll() {
-    return this.alertRepository.findAll();
+    const alerts = await this.alertRepository.findAll();
+    return alerts.map((a) => ({
+      id: a.id,
+      segmentId: a.segmentId,
+      osId: a.osId,
+      level: a.level,
+      score: a.score,
+      createdAt: a.createdAt,
+    }));
   }
 }

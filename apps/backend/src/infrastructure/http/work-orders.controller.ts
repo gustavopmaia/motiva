@@ -25,7 +25,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
-import { WorkOrderStatus, WorkOrderPriority } from "@domain/entities/work-order.entity";
+import { WorkOrderStatus, WorkOrderPriority, WorkOrder } from "@domain/entities/work-order.entity";
 import { WorkOrderRepository } from "@domain/repositories/work-order.repository";
 import { CreateWorkOrderUseCase } from "@application/use-cases/create-work-order.use-case";
 import { UpdateWorkOrderUseCase } from "@application/use-cases/update-work-order.use-case";
@@ -87,10 +87,11 @@ export class WorkOrdersController {
     if (status !== undefined && !VALID_STATUSES.includes(status as WorkOrderStatus)) {
       throw new BadRequestException("Invalid status filter");
     }
-    return this.workOrderRepository.findAll({
+    const workOrders = await this.workOrderRepository.findAll({
       status: status as WorkOrderStatus | undefined,
       team,
     });
+    return workOrders.map(this.toResponse);
   }
 
   @Post()
@@ -132,7 +133,7 @@ export class WorkOrdersController {
       throw new BadRequestException("scoreAtCreation must be a number");
     }
 
-    return this.createWorkOrder.execute({
+    const wo = await this.createWorkOrder.execute({
       segmentId,
       alertId,
       priority: priority as WorkOrderPriority,
@@ -140,6 +141,7 @@ export class WorkOrdersController {
       team: typeof team === "string" ? team : null,
       observation: typeof observation === "string" ? observation : null,
     });
+    return this.toResponse(wo);
   }
 
   @Patch(":id")
@@ -170,7 +172,7 @@ export class WorkOrdersController {
     }
 
     try {
-      return await this.updateWorkOrder.execute(id, {
+      const wo = await this.updateWorkOrder.execute(id, {
         status: status as WorkOrderStatus | undefined,
         team: team !== undefined ? (team === null ? null : String(team)) : undefined,
         observation:
@@ -180,6 +182,7 @@ export class WorkOrdersController {
               : String(observation)
             : undefined,
       });
+      return this.toResponse(wo);
     } catch (error: unknown) {
       if (error instanceof NotFoundError) throw new NotFoundException(error.message);
       if (error instanceof InvalidOperationError) throw new BadRequestException(error.message);
@@ -208,11 +211,28 @@ export class WorkOrdersController {
   @ApiNotFoundResponse({ description: "No work order exists for the provided identifier." })
   async complete(@Param("id") id: string) {
     try {
-      return await this.completeWorkOrder.execute(id);
+      const wo = await this.completeWorkOrder.execute(id);
+      return this.toResponse(wo);
     } catch (error: unknown) {
       if (error instanceof NotFoundError) throw new NotFoundException(error.message);
       if (error instanceof InvalidOperationError) throw new BadRequestException(error.message);
       throw new BadRequestException(error instanceof Error ? error.message : "Completion failed");
     }
+  }
+
+  private toResponse(wo: WorkOrder) {
+    return {
+      id: wo.id,
+      segmentId: wo.segmentId,
+      alertId: wo.alertId,
+      status: wo.status,
+      priority: wo.priority,
+      scoreAtCreation: wo.scoreAtCreation,
+      team: wo.team,
+      observation: wo.observation,
+      createdAt: wo.createdAt,
+      startedAt: wo.startedAt,
+      completedAt: wo.completedAt,
+    };
   }
 }

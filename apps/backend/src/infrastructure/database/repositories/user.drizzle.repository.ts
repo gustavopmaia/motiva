@@ -21,6 +21,15 @@ export class UserDrizzleRepository implements UserRepository {
     return this.toEntity(row);
   }
 
+  async hasAnyManager(): Promise<boolean> {
+    const [row] = await this.drizzle.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.role, "manager"))
+      .limit(1);
+    return !!row;
+  }
+
   async save(user: User): Promise<User> {
     const [saved] = await this.drizzle.db
       .insert(users)
@@ -35,6 +44,15 @@ export class UserDrizzleRepository implements UserRepository {
         target: users.email,
         set: { name: user.name, password: user.password, role: user.role },
       })
+      .returning();
+    return this.toEntity(saved);
+  }
+
+  async update(user: User): Promise<User> {
+    const [saved] = await this.drizzle.db
+      .update(users)
+      .set({ name: user.name, password: user.password, role: user.role, updatedAt: new Date() })
+      .where(eq(users.id, user.id))
       .returning();
     return this.toEntity(saved);
   }
