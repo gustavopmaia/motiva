@@ -21,15 +21,6 @@ export class UserDrizzleRepository implements UserRepository {
     return this.toEntity(row);
   }
 
-  async hasAnyManager(): Promise<boolean> {
-    const [row] = await this.drizzle.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.role, "manager"))
-      .limit(1);
-    return !!row;
-  }
-
   async save(user: User): Promise<User> {
     const [saved] = await this.drizzle.db
       .insert(users)

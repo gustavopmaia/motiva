@@ -19,6 +19,14 @@ export class RegisterRequestDto {
     example: "change-me-123",
   })
   password!: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Role assigned to the new user. Only managers can set this field. Defaults to field.",
+    enum: ["manager", "field"],
+    example: "field",
+  })
+  role?: string;
 }
 
 export class LoginRequestDto {

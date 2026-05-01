@@ -96,11 +96,13 @@ export class AuthController {
     }
 
     try {
+      const targetRole = body.role === "manager" ? "manager" : "field";
       return await this.registerUser.execute(
         String(body.email ?? ""),
         String(body.name ?? ""),
         String(body.password ?? ""),
         requesterRole,
+        targetRole,
       );
     } catch (error: unknown) {
       if (error instanceof AuthorizationError) throw new ForbiddenException(error.message);

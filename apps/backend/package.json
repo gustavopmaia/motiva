@@ -9,7 +9,6 @@
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "test": "jest",
     "migrate": "node dist/src/migrate.js",
-    "seed": "node dist/src/seed.js",
     "generate": "npm exec -- drizzle-kit generate"
   },
   "dependencies": {

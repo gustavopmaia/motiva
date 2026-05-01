@@ -18,22 +18,17 @@ export class RegisterUserUseCase {
     name: string,
     password: string,
     requesterRole: UserRole | null = null,
+    targetRole: UserRole = "field",
   ): Promise<{ id: string }> {
     validatePasswordStrength(password);
 
     const existing = await this.userRepository.findByEmail(email);
     if (existing) throw new DuplicateResourceError("User exists");
 
-    const hasManager = await this.userRepository.hasAnyManager();
+    if (requesterRole !== "manager")
+      throw new AuthorizationError("Only managers can register users");
 
-    let role: UserRole;
-    if (!hasManager) {
-      role = "manager";
-    } else {
-      if (requesterRole !== "manager")
-        throw new AuthorizationError("Only managers can register users");
-      role = "field";
-    }
+    const role: UserRole = targetRole;
 
     const hashed = await argon2.hash(password);
     const user = new User(randomUUID(), email, name, hashed, role);
