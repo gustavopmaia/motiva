@@ -1,4 +1,4 @@
-FROM node:24.14.0-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ COPY docs docs
 
 RUN npm run build --workspace=docs
 
-FROM node:24.14.0-alpine
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 
