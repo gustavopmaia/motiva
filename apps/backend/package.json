@@ -34,10 +34,13 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.11.0",
     "@types/passport-jwt": "^4.0.1",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.16.0",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.3.3"
   }
 }
