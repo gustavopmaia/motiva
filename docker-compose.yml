@@ -23,9 +23,10 @@ services:
       retries: 10
     restart: unless-stopped
   docs:
+    image: ${DOCS_IMAGE:-motiva-docs:local}
     build:
-      context: ./docs
-    container_name: motiva-docs
+      context: .
+      dockerfile: docs/Dockerfile
     ports:
       - "0.0.0.0:3001:3001"
     restart: unless-stopped

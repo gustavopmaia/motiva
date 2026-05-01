@@ -2,20 +2,22 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+COPY package.json package-lock.json ./
+COPY docs/package.json docs/package.json
 
-COPY . .
+RUN npm ci --workspace=docs
 
-RUN npm run build
+COPY docs docs
 
-FROM node:24-alpine
+RUN npm run build --workspace=docs
+
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 
 RUN npm install -g serve
 
-COPY --from=builder /app/build ./build
+COPY --from=builder /app/docs/build ./build
 
 EXPOSE 3001
 

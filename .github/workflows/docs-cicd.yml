@@ -31,7 +31,8 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: ./docs
+          context: .
+          file: docs/Dockerfile
           push: true
           tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:${{ github.sha }}
           cache-from: type=registry,ref=${{ env.IMAGE }}:cache
