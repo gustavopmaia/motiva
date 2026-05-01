@@ -7,13 +7,23 @@ import { ProcessReadingResultJob } from "@application/jobs/readings-queue.types"
 jest.spyOn(Logger.prototype, "error").mockImplementation(() => {});
 
 const makeProcessor = (existingAlert: Alert | null = null) => {
-  const alertRepository = {
-    findOpenBySegmentAndLevel: jest.fn().mockResolvedValue(existingAlert),
-    save: jest.fn().mockImplementation((a: Alert) => Promise.resolve(a)),
+  const alertsService = {
+    createOrFindOpen: jest.fn().mockResolvedValue(
+      existingAlert ?? {
+        id: "a-1",
+        segmentId: "seg-1",
+        osId: null,
+        level: "urgent",
+        score: 60,
+        channels: {},
+        createdAt: new Date(),
+        closedAt: null,
+      },
+    ),
   };
   const alertsQueue = { add: jest.fn().mockResolvedValue(undefined) };
-  const processor = new (AlertsProcessor as any)(alertRepository, alertsQueue);
-  return { processor, alertRepository, alertsQueue };
+  const processor = new (AlertsProcessor as any)(alertsService, alertsQueue);
+  return { processor, alertsService, alertsQueue };
 };
 
 const makeJob = (data: ProcessReadingResultJob) => ({ data }) as Job<ProcessReadingResultJob>;
@@ -33,7 +43,16 @@ describe("AlertsProcessor", () => {
   });
 
   it("deve reenfileirar work order com o alerta existente (idempotente)", async () => {
-    const existing = new Alert("a-1", "seg-1", null, "urgent", 60, {});
+    const existing: Alert = {
+      id: "a-1",
+      segmentId: "seg-1",
+      osId: null,
+      level: "urgent",
+      score: 60,
+      channels: {},
+      createdAt: new Date(),
+      closedAt: null,
+    };
     const { processor, alertsQueue } = makeProcessor(existing);
 
     await processor.process(
@@ -47,8 +66,8 @@ describe("AlertsProcessor", () => {
   });
 
   it("deve relançar o erro quando o repositório falha", async () => {
-    const { processor, alertRepository } = makeProcessor();
-    alertRepository.findOpenBySegmentAndLevel.mockRejectedValue(new Error("DB error"));
+    const { processor, alertsService } = makeProcessor();
+    alertsService.createOrFindOpen.mockRejectedValue(new Error("DB error"));
 
     await expect(
       processor.process(

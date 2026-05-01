@@ -3,8 +3,6 @@ import {
   Body,
   Controller,
   Get,
-  Inject,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -26,11 +24,7 @@ import {
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { WorkOrderStatus, WorkOrderPriority, WorkOrder } from "@domain/entities/work-order.entity";
-import { WorkOrderRepository } from "@domain/repositories/work-order.repository";
-import { CreateWorkOrderUseCase } from "@application/use-cases/create-work-order.use-case";
-import { UpdateWorkOrderUseCase } from "@application/use-cases/update-work-order.use-case";
-import { CompleteWorkOrderUseCase } from "@application/use-cases/complete-work-order.use-case";
-import { InvalidOperationError, NotFoundError } from "@application/errors";
+import { WorkOrdersService } from "@application/services/work-orders.service";
 import { JwtAuthGuard } from "@infrastructure/http/guards/jwt.guard";
 import { RolesGuard } from "@infrastructure/http/guards/roles.guard";
 import { Roles } from "@infrastructure/http/decorators/roles.decorator";
@@ -48,13 +42,7 @@ const VALID_PRIORITIES: WorkOrderPriority[] = ["normal", "urgent", "critical"];
 @Controller("work-orders")
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
-  constructor(
-    @Inject(WorkOrderRepository)
-    private readonly workOrderRepository: WorkOrderRepository,
-    private readonly createWorkOrder: CreateWorkOrderUseCase,
-    private readonly updateWorkOrder: UpdateWorkOrderUseCase,
-    private readonly completeWorkOrder: CompleteWorkOrderUseCase,
-  ) {}
+  constructor(private readonly workOrdersService: WorkOrdersService) {}
 
   @Get()
   @ApiOperation({
@@ -84,13 +72,8 @@ export class WorkOrdersController {
     description: "The JWT access token is missing, invalid, expired, or cannot be verified.",
   })
   async findAll(@Query("status") status?: string, @Query("team") team?: string) {
-    if (status !== undefined && !VALID_STATUSES.includes(status as WorkOrderStatus)) {
-      throw new BadRequestException("Invalid status filter");
-    }
-    const workOrders = await this.workOrderRepository.findAll({
-      status: status as WorkOrderStatus | undefined,
-      team,
-    });
+    const filters = parseWorkOrderFilters(status, team);
+    const workOrders = await this.workOrdersService.findAll(filters);
     return workOrders.map(this.toResponse);
   }
 
@@ -117,30 +100,7 @@ export class WorkOrdersController {
     description: "The authenticated user does not have the manager role.",
   })
   async create(@Body() body: Record<string, unknown>) {
-    const { segmentId, alertId, priority, scoreAtCreation, team, observation } = body;
-
-    if (typeof segmentId !== "string" || !segmentId) {
-      throw new BadRequestException("segmentId is required");
-    }
-    if (typeof alertId !== "string" || !alertId) {
-      throw new BadRequestException("alertId is required");
-    }
-    if (!VALID_PRIORITIES.includes(priority as WorkOrderPriority)) {
-      throw new BadRequestException("priority must be normal, urgent, or critical");
-    }
-    const score = Number(scoreAtCreation);
-    if (!Number.isFinite(score)) {
-      throw new BadRequestException("scoreAtCreation must be a number");
-    }
-
-    const wo = await this.createWorkOrder.execute({
-      segmentId,
-      alertId,
-      priority: priority as WorkOrderPriority,
-      scoreAtCreation: score,
-      team: typeof team === "string" ? team : null,
-      observation: typeof observation === "string" ? observation : null,
-    });
+    const wo = await this.workOrdersService.create(parseCreateWorkOrderBody(body));
     return this.toResponse(wo);
   }
 
@@ -165,29 +125,8 @@ export class WorkOrdersController {
   })
   @ApiNotFoundResponse({ description: "No work order exists for the provided identifier." })
   async update(@Param("id") id: string, @Body() body: Record<string, unknown>) {
-    const { status, team, observation } = body;
-
-    if (status !== undefined && !VALID_STATUSES.includes(status as WorkOrderStatus)) {
-      throw new BadRequestException("Invalid status");
-    }
-
-    try {
-      const wo = await this.updateWorkOrder.execute(id, {
-        status: status as WorkOrderStatus | undefined,
-        team: team !== undefined ? (team === null ? null : String(team)) : undefined,
-        observation:
-          observation !== undefined
-            ? observation === null
-              ? null
-              : String(observation)
-            : undefined,
-      });
-      return this.toResponse(wo);
-    } catch (error: unknown) {
-      if (error instanceof NotFoundError) throw new NotFoundException(error.message);
-      if (error instanceof InvalidOperationError) throw new BadRequestException(error.message);
-      throw new BadRequestException(error instanceof Error ? error.message : "Update failed");
-    }
+    const wo = await this.workOrdersService.update(id, parseUpdateWorkOrderBody(body));
+    return this.toResponse(wo);
   }
 
   @Post(":id/complete")
@@ -210,14 +149,8 @@ export class WorkOrdersController {
   })
   @ApiNotFoundResponse({ description: "No work order exists for the provided identifier." })
   async complete(@Param("id") id: string) {
-    try {
-      const wo = await this.completeWorkOrder.execute(id);
-      return this.toResponse(wo);
-    } catch (error: unknown) {
-      if (error instanceof NotFoundError) throw new NotFoundException(error.message);
-      if (error instanceof InvalidOperationError) throw new BadRequestException(error.message);
-      throw new BadRequestException(error instanceof Error ? error.message : "Completion failed");
-    }
+    const wo = await this.workOrdersService.complete(id);
+    return this.toResponse(wo);
   }
 
   private toResponse(wo: WorkOrder) {
@@ -235,4 +168,71 @@ export class WorkOrdersController {
       completedAt: wo.completedAt,
     };
   }
+}
+
+function parseWorkOrderFilters(status?: string, team?: string) {
+  if (status !== undefined && !VALID_STATUSES.includes(status as WorkOrderStatus)) {
+    throw new BadRequestException({
+      message: "Invalid work order filters.",
+      details: { fields: [{ field: "status", message: "status filter is invalid" }] },
+    });
+  }
+
+  return {
+    status: status as WorkOrderStatus | undefined,
+    team,
+  };
+}
+
+function parseCreateWorkOrderBody(body: Record<string, unknown>) {
+  const { segmentId, alertId, priority, scoreAtCreation, team, observation } = body;
+  const fields: { field: string; message: string }[] = [];
+
+  if (typeof segmentId !== "string" || !segmentId) {
+    fields.push({ field: "segmentId", message: "segmentId is required" });
+  }
+  if (typeof alertId !== "string" || !alertId) {
+    fields.push({ field: "alertId", message: "alertId is required" });
+  }
+  if (!VALID_PRIORITIES.includes(priority as WorkOrderPriority)) {
+    fields.push({ field: "priority", message: "priority must be normal, urgent, or critical" });
+  }
+
+  const score = Number(scoreAtCreation);
+  if (!Number.isFinite(score)) {
+    fields.push({ field: "scoreAtCreation", message: "scoreAtCreation must be a number" });
+  }
+
+  if (fields.length > 0) {
+    throw new BadRequestException({
+      message: "Invalid work order payload.",
+      details: { fields },
+    });
+  }
+
+  return {
+    segmentId: segmentId as string,
+    alertId: alertId as string,
+    priority: priority as WorkOrderPriority,
+    scoreAtCreation: score,
+    team: typeof team === "string" ? team : null,
+    observation: typeof observation === "string" ? observation : null,
+  };
+}
+
+function parseUpdateWorkOrderBody(body: Record<string, unknown>) {
+  const { status, team, observation } = body;
+  if (status !== undefined && !VALID_STATUSES.includes(status as WorkOrderStatus)) {
+    throw new BadRequestException({
+      message: "Invalid work order payload.",
+      details: { fields: [{ field: "status", message: "status is invalid" }] },
+    });
+  }
+
+  return {
+    status: status as WorkOrderStatus | undefined,
+    team: team !== undefined ? (team === null ? null : String(team)) : undefined,
+    observation:
+      observation !== undefined ? (observation === null ? null : String(observation)) : undefined,
+  };
 }

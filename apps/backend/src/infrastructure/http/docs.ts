@@ -1,5 +1,6 @@
 import { INestApplication } from "@nestjs/common";
-import { DocumentBuilder, OpenAPIObject, SwaggerModule } from "@nestjs/swagger";
+import { DocumentBuilder, getSchemaPath, OpenAPIObject, SwaggerModule } from "@nestjs/swagger";
+import { ApiErrorResponseDto } from "./error-response";
 
 type JsonResponse = {
   json(body: unknown): void;
@@ -37,7 +38,10 @@ export function setupDocs(app: INestApplication): void {
     )
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, config, {
+    extraModels: [ApiErrorResponseDto],
+  });
+  applyErrorResponseSchemas(document);
   const adapter = app.getHttpAdapter();
 
   adapter.get("/api/docs-json", (_request: unknown, response: JsonResponse) => {
@@ -47,6 +51,31 @@ export function setupDocs(app: INestApplication): void {
   adapter.get("/api/docs", (_request: unknown, response: HtmlResponse) => {
     response.type("text/html").send(renderRedoc(document));
   });
+}
+
+function applyErrorResponseSchemas(document: OpenAPIObject): void {
+  const methods = ["get", "post", "put", "patch", "delete", "options", "head"] as const;
+
+  for (const pathItem of Object.values(document.paths)) {
+    if (!pathItem) continue;
+
+    for (const method of methods) {
+      const operation = pathItem[method];
+      if (!operation?.responses) continue;
+
+      for (const [status, response] of Object.entries(operation.responses)) {
+        if (!status.startsWith("4") && !status.startsWith("5")) continue;
+        if (!response) continue;
+        if (!("description" in response)) continue;
+
+        response.content = {
+          "application/json": {
+            schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+          },
+        };
+      }
+    }
+  }
 }
 
 function renderRedoc(document: OpenAPIObject): string {

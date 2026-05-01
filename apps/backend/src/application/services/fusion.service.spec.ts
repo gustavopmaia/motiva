@@ -2,26 +2,50 @@ import { FusionService } from "./fusion.service";
 import { Reading } from "@domain/entities/reading.entity";
 import { RoadSegment } from "@domain/entities/road-segment.entity";
 
-const seg = (score: number | null = null) => new RoadSegment("seg-1", "BR-101", 0, 1, null, score);
+const seg = (score: number | null = null): RoadSegment => ({
+  id: "seg-1",
+  roadName: "BR-101",
+  kmStart: 0,
+  kmEnd: 1,
+  mowingType: null,
+  scoreCurrent: score,
+  scoreDivergent: false,
+});
 
-const reading = (source: "iot" | "vehicle" | "satellite", score: number): Reading =>
-  new Reading("r-1", "seg-1", source, null, null, 1, score, 0, 0, null);
+const reading = (source: "iot" | "vehicle" | "satellite", score: number): Reading => ({
+  id: "r-1",
+  segmentId: "seg-1",
+  source,
+  heightCm: null,
+  classification: null,
+  confidence: 1,
+  score,
+  lat: 0,
+  lon: 0,
+  metadata: null,
+  createdAt: new Date(),
+});
 
 const makeService = (readings: Reading[], segment: RoadSegment | null = seg()) => {
-  const readingRepository = {
-    findLatestBySourceBySegmentSince: jest.fn().mockResolvedValue(readings),
-  };
-  const roadSegmentRepository = {
-    findById: jest.fn().mockResolvedValue(segment),
-    updateScore: jest.fn().mockResolvedValue(undefined),
+  const whereSegment = jest
+    .fn()
+    .mockReturnValue({ limit: jest.fn().mockResolvedValue(segment ? [segment] : []) });
+  const select = jest.fn().mockReturnValue({
+    from: jest.fn().mockReturnValue({ where: whereSegment }),
+  });
+  const whereUpdate = jest.fn().mockResolvedValue(undefined);
+  const set = jest.fn().mockReturnValue({ where: whereUpdate });
+  const update = jest.fn().mockReturnValue({ set });
+  const drizzle = {
+    db: {
+      select,
+      execute: jest.fn().mockResolvedValue(readings),
+      update,
+    },
   };
   const readingsQueue = { add: jest.fn().mockResolvedValue(undefined) };
-  const service = new (FusionService as any)(
-    readingRepository,
-    roadSegmentRepository,
-    readingsQueue,
-  );
-  return { service, readingRepository, roadSegmentRepository, readingsQueue };
+  const service = new (FusionService as any)(drizzle, readingsQueue);
+  return { service, drizzle, set, readingsQueue };
 };
 
 describe("FusionService", () => {
@@ -40,14 +64,11 @@ describe("FusionService", () => {
 
   it("deve normalizar pesos quando apenas uma fonte está presente", async () => {
     // só iot com score 40 → peso normalizado = 1.0 → score = 40, cruza threshold 30
-    const { service, readingsQueue, roadSegmentRepository } = makeService(
-      [reading("iot", 40)],
-      seg(0),
-    );
+    const { service, readingsQueue, set } = makeService([reading("iot", 40)], seg(0));
 
     await service.updateScoreForSegment("seg-1", "r-1");
 
-    expect(roadSegmentRepository.updateScore).toHaveBeenCalledWith("seg-1", 40, false);
+    expect(set).toHaveBeenCalledWith({ scoreCurrent: 40, scoreDivergent: false });
     expect(readingsQueue.add).toHaveBeenCalledWith(
       "process-reading-result",
       expect.objectContaining({ level: "attention" }),

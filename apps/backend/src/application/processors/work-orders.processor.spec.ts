@@ -6,17 +6,17 @@ import { CreateWorkOrderJob } from "@application/jobs/readings-queue.types";
 jest.spyOn(Logger.prototype, "error").mockImplementation(() => {});
 
 const makeProcessor = () => {
-  const createWorkOrder = { execute: jest.fn().mockResolvedValue({ id: "wo-1" }) };
-  const alertRepository = { updateOsId: jest.fn().mockResolvedValue(undefined) };
-  const processor = new (WorkOrdersProcessor as any)(createWorkOrder, alertRepository);
-  return { processor, createWorkOrder, alertRepository };
+  const workOrdersService = { create: jest.fn().mockResolvedValue({ id: "wo-1" }) };
+  const alertsService = { updateOsId: jest.fn().mockResolvedValue(undefined) };
+  const processor = new (WorkOrdersProcessor as any)(workOrdersService, alertsService);
+  return { processor, workOrdersService, alertsService };
 };
 
 const makeJob = (data: CreateWorkOrderJob) => ({ data }) as Job<CreateWorkOrderJob>;
 
 describe("WorkOrdersProcessor", () => {
   it("deve criar work order com prioridade critical para alerta critical", async () => {
-    const { processor, createWorkOrder } = makeProcessor();
+    const { processor, workOrdersService } = makeProcessor();
 
     await processor.process(
       makeJob({
@@ -28,13 +28,13 @@ describe("WorkOrdersProcessor", () => {
       }),
     );
 
-    expect(createWorkOrder.execute).toHaveBeenCalledWith(
+    expect(workOrdersService.create).toHaveBeenCalledWith(
       expect.objectContaining({ priority: "critical" }),
     );
   });
 
   it("deve criar work order com prioridade normal para alerta attention", async () => {
-    const { processor, createWorkOrder } = makeProcessor();
+    const { processor, workOrdersService } = makeProcessor();
 
     await processor.process(
       makeJob({
@@ -46,14 +46,14 @@ describe("WorkOrdersProcessor", () => {
       }),
     );
 
-    expect(createWorkOrder.execute).toHaveBeenCalledWith(
+    expect(workOrdersService.create).toHaveBeenCalledWith(
       expect.objectContaining({ priority: "normal" }),
     );
   });
 
   it("deve relançar o erro quando o use case falha", async () => {
-    const { processor, createWorkOrder } = makeProcessor();
-    createWorkOrder.execute.mockRejectedValue(new Error("use case error"));
+    const { processor, workOrdersService } = makeProcessor();
+    workOrdersService.create.mockRejectedValue(new Error("service error"));
 
     await expect(
       processor.process(
@@ -65,6 +65,6 @@ describe("WorkOrdersProcessor", () => {
           readingId: "r-3",
         }),
       ),
-    ).rejects.toThrow("use case error");
+    ).rejects.toThrow("service error");
   });
 });

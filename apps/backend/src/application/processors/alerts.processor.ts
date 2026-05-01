@@ -1,9 +1,7 @@
-import { Inject, Logger } from "@nestjs/common";
+import { Logger } from "@nestjs/common";
 import { InjectQueue, Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job, Queue } from "bullmq";
-import { randomUUID } from "crypto";
-import { Alert } from "@domain/entities/alert.entity";
-import { AlertRepository } from "@domain/repositories/alert.repository";
+import { AlertsService } from "@application/services/alerts.service";
 import {
   ALERTS_QUEUE,
   READINGS_QUEUE,
@@ -16,8 +14,7 @@ export class AlertsProcessor extends WorkerHost {
   private readonly logger = new Logger(AlertsProcessor.name);
 
   constructor(
-    @Inject(AlertRepository)
-    private readonly alertRepository: AlertRepository,
+    private readonly alertsService: AlertsService,
     @InjectQueue(ALERTS_QUEUE)
     private readonly alertsQueue: Queue,
   ) {
@@ -27,13 +24,7 @@ export class AlertsProcessor extends WorkerHost {
   async process(job: Job<ProcessReadingResultJob>): Promise<void> {
     const { segmentId, score, level, readingId } = job.data;
     try {
-      const existing = await this.alertRepository.findOpenBySegmentAndLevel(segmentId, level);
-      const alert =
-        existing ??
-        (await this.alertRepository.save(
-          new Alert(randomUUID(), segmentId, null, level, score, {}),
-        ));
-
+      const alert = await this.alertsService.createOrFindOpen(segmentId, level, score);
       const payload: CreateWorkOrderJob = { segmentId, score, level, readingId, alertId: alert.id };
       await this.alertsQueue.add("create-work-order", payload);
     } catch (error: unknown) {

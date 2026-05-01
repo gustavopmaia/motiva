@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, UseGuards } from "@nestjs/common";
+import { Controller, Get, UseGuards } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -7,16 +7,13 @@ import {
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "@infrastructure/http/guards/jwt.guard";
-import { RoadSegmentRepository } from "@domain/repositories/road-segment.repository";
+import { RoadSegmentsService } from "@application/services/road-segments.service";
 import { RoadSegmentResponseDto } from "./dto/road-segments.docs";
 
 @ApiTags("Road Segments")
 @Controller("road-segments")
 export class RoadSegmentsController {
-  constructor(
-    @Inject(RoadSegmentRepository)
-    private readonly roadSegmentRepository: RoadSegmentRepository,
-  ) {}
+  constructor(private readonly roadSegmentsService: RoadSegmentsService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -28,7 +25,7 @@ export class RoadSegmentsController {
   @ApiOkResponse({ type: [RoadSegmentResponseDto], description: "Array of road segments." })
   @ApiUnauthorizedResponse({ description: "JWT token missing or invalid." })
   async findAll() {
-    const segments = await this.roadSegmentRepository.findAll();
+    const segments = await this.roadSegmentsService.findAll();
     return segments.map((s) => ({
       id: s.id,
       roadName: s.roadName,

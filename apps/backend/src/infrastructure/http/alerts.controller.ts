@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, UseGuards } from "@nestjs/common";
+import { Controller, Get, UseGuards } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -6,7 +6,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
-import { AlertRepository } from "@domain/repositories/alert.repository";
+import { AlertsService } from "@application/services/alerts.service";
 import { AlertResponseDto } from "./dto/alerts.docs";
 import { JwtAuthGuard } from "./guards/jwt.guard";
 
@@ -15,7 +15,7 @@ import { JwtAuthGuard } from "./guards/jwt.guard";
 @Controller("alerts")
 @UseGuards(JwtAuthGuard)
 export class AlertsController {
-  constructor(@Inject(AlertRepository) private readonly alertRepository: AlertRepository) {}
+  constructor(private readonly alertsService: AlertsService) {}
 
   @Get()
   @ApiOperation({
@@ -31,7 +31,7 @@ export class AlertsController {
     description: "The JWT access token is missing, invalid, expired, or cannot be verified.",
   })
   async findAll() {
-    const alerts = await this.alertRepository.findAll();
+    const alerts = await this.alertsService.findAll();
     return alerts.map((a) => ({
       id: a.id,
       segmentId: a.segmentId,

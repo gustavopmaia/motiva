@@ -1,11 +1,12 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { ReadingSource } from "@domain/entities/reading.entity";
-import { ReadingRepository } from "@domain/repositories/reading.repository";
-import { RoadSegmentRepository } from "@domain/repositories/road-segment.repository";
 import { AlertLevel } from "@domain/entities/alert.entity";
 import { READINGS_QUEUE, ProcessReadingResultJob } from "@application/jobs/readings-queue.types";
+import { DrizzleService } from "@infrastructure/database/drizzle.service";
+import { roadSegments } from "@infrastructure/database/schema";
+import { eq, sql } from "drizzle-orm";
 
 const SOURCE_WEIGHTS: Record<ReadingSource, number> = {
   iot: 0.5,
@@ -24,22 +25,28 @@ function scoreToLevel(score: number): AlertLevel | null {
 @Injectable()
 export class FusionService {
   constructor(
-    @Inject(ReadingRepository)
-    private readonly readingRepository: ReadingRepository,
-    @Inject(RoadSegmentRepository)
-    private readonly roadSegmentRepository: RoadSegmentRepository,
+    private readonly drizzle: DrizzleService,
     @InjectQueue(READINGS_QUEUE)
     private readonly readingsQueue: Queue,
   ) {}
 
   async updateScoreForSegment(segmentId: string, readingId: string) {
-    const segment = await this.roadSegmentRepository.findById(segmentId);
+    const [segment] = await this.drizzle.db
+      .select()
+      .from(roadSegments)
+      .where(eq(roadSegments.id, segmentId))
+      .limit(1);
     if (!segment) return;
 
-    const readings = await this.readingRepository.findLatestBySourceBySegmentSince(
-      segmentId,
-      new Date(Date.now() - 24 * 60 * 60 * 1000),
-    );
+    const readings = await this.drizzle.db.execute<LatestReadingRow>(sql`
+      SELECT DISTINCT ON (source)
+        source,
+        score
+      FROM readings
+      WHERE segment_id = ${segmentId}
+        AND created_at >= ${new Date(Date.now() - 24 * 60 * 60 * 1000)}
+      ORDER BY source, created_at DESC
+    `);
 
     if (readings.length === 0) return;
 
@@ -56,7 +63,10 @@ export class FusionService {
     const divergence = scores.length > 1 && Math.max(...scores) - Math.min(...scores) > 40;
     const previousScore = segment.scoreCurrent;
 
-    await this.roadSegmentRepository.updateScore(segmentId, currentScore, divergence);
+    await this.drizzle.db
+      .update(roadSegments)
+      .set({ scoreCurrent: currentScore, scoreDivergent: divergence })
+      .where(eq(roadSegments.id, segmentId));
 
     const previous = previousScore ?? 0;
     const crossedThreshold = SCORE_THRESHOLDS.some(
@@ -73,3 +83,8 @@ export class FusionService {
     await this.readingsQueue.add("process-reading-result", job);
   }
 }
+
+type LatestReadingRow = {
+  source: ReadingSource;
+  score: number;
+};
