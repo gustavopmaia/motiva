@@ -1,5 +1,6 @@
 services:
   backend:
+    image: ${BACKEND_IMAGE:-motiva-backend:local}
     build:
       context: .
       dockerfile: Dockerfile
