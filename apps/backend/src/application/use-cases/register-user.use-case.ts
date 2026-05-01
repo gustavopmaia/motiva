@@ -7,12 +7,14 @@ import { DuplicateResourceError } from "@application/errors";
 export class RegisterUserUseCase {
   constructor(private readonly userRepository: UserRepository) {}
 
-  async execute(email: string, name: string, password: string, role: UserRole = "field") {
+  async execute(email: string, name: string, password: string, role: UserRole = "field"): Promise<Partial<User>> {
     const existing = await this.userRepository.findByEmail(email);
     if (existing) throw new DuplicateResourceError("User exists");
 
     const hashed = await argon2.hash(password);
     const user = new User(randomUUID(), email, name, hashed, role);
-    return this.userRepository.save(user);
+    const result = this.userRepository.save(user);
+
+    return { id: result.id };
   }
 }
