@@ -76,6 +76,7 @@ jobs:
           script: |
             set -e
             cd ${{ vars.EC2_APP_PATH }}
+            git pull --ff-only origin main
             echo $GHCR_TOKEN | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
             BACKEND_IMAGE=$(echo $IMAGE | tr '[:upper:]' '[:lower:]'):latest
             export BACKEND_IMAGE
