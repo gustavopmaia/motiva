@@ -13,7 +13,7 @@ export class RegisterUserUseCase {
 
     const hashed = await argon2.hash(password);
     const user = new User(randomUUID(), email, name, hashed, role);
-    const result = this.userRepository.save(user);
+    const result = await this.userRepository.save(user);
 
     return { id: result.id };
   }
