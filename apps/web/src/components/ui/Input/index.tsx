@@ -1,10 +1,10 @@
 import { useState, type InputHTMLAttributes } from "react";
-import { Eye, EyeOff, User, Lock } from "lucide-react";
+import { Eye, EyeOff, User, Lock, Mail } from "lucide-react";
 import styles from "./index.module.css";
 
 type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
-  prefixIcon?: "user" | "lock";
+  prefixIcon?: "user" | "email" | "lock";
   showPasswordToggle?: boolean;
   showForgotPassword?: boolean;
   onForgotPassword?: () => void;
@@ -13,6 +13,7 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
 const PrefixIconComponent = {
   user: User,
   lock: Lock,
+  email: Mail,
 };
 
 export function Input({

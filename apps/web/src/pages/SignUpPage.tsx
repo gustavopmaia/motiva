@@ -6,7 +6,8 @@ import styles from "@/styles/pages/Login/index.module.css";
 import { Compass } from "lucide-react";
 import { useState } from "react";
 
-export function LoginPage() {
+export function SignUpPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -17,9 +18,15 @@ export function LoginPage() {
         <h2 id={styles.title}>Cultiva</h2>
       </div>
       <div className={styles.container}>
-        <p className={styles.description}>
-          Entre com suas credenciais para ter acesso à plataforma
-        </p>
+        <p className={styles.description}>Cadastre-se para ter acesso à plataforma</p>
+        <Input
+          prefixIcon="user"
+          label="Nome"
+          id="name"
+          placeholder="nome"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
         <Input
           prefixIcon="email"
           label="E-mail"
@@ -34,21 +41,21 @@ export function LoginPage() {
           id="pwd"
           placeholder="senha"
           showPasswordToggle
-          showForgotPassword
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         <Button
           onClick={async () => {
-            const result = await api.post("/v1/auth/login", {
+            const result = await api.post("/v1/auth/register", {
               email: email ?? "motiva@motiva.com",
+              name: name ?? "Gabriel Fidalgo",
               password: password ?? "change-me-123",
             });
 
             console.log(result);
           }}
-          disabled={!email.trim() || !password.trim()}
+          disabled={!name.trim() || !email.trim() || !password.trim()}
         >
           Entrar
         </Button>
