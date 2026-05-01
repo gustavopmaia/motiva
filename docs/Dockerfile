@@ -2,14 +2,13 @@ FROM node:24.14.0-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-COPY docs/package.json docs/package.json
+COPY docs/package.json docs/package-lock.json ./
 
-RUN npm ci --workspace=docs
+RUN npm ci
 
-COPY docs docs
+COPY docs .
 
-RUN npm run build --workspace=docs
+RUN npm run build
 
 FROM node:24.14.0-alpine
 
@@ -17,7 +16,7 @@ WORKDIR /app
 
 RUN npm install -g serve
 
-COPY --from=builder /app/docs/build ./build
+COPY --from=builder /app/build ./build
 
 EXPOSE 3001
 
