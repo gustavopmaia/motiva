@@ -1,1 +1,1 @@
-ALTER TABLE "alerts" ADD COLUMN "closed_at" timestamp;
+ALTER TABLE "alerts" ADD COLUMN IF NOT EXISTS "closed_at" timestamp;
