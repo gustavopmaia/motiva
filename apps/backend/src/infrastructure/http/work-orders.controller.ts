@@ -35,7 +35,7 @@ import {
 } from "./dto/work-orders.docs";
 
 const VALID_STATUSES: WorkOrderStatus[] = ["open", "in_progress", "completed"];
-const VALID_PRIORITIES: WorkOrderPriority[] = ["normal", "urgent", "critical"];
+const VALID_PRIORITIES: WorkOrderPriority[] = ["attention", "urgent", "critical"];
 
 @ApiTags("Work orders")
 @ApiBearerAuth("jwt")
@@ -195,7 +195,7 @@ function parseCreateWorkOrderBody(body: Record<string, unknown>) {
     fields.push({ field: "alertId", message: "alertId is required" });
   }
   if (!VALID_PRIORITIES.includes(priority as WorkOrderPriority)) {
-    fields.push({ field: "priority", message: "priority must be normal, urgent, or critical" });
+    fields.push({ field: "priority", message: "priority must be attention, urgent, or critical" });
   }
 
   const score = Number(scoreAtCreation);

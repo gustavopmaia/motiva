@@ -5,15 +5,15 @@ import { AlertLevel } from "@domain/entities/alert.entity";
 import { WorkOrderPriority } from "@domain/entities/work-order.entity";
 import { AlertsService } from "@application/services/alerts.service";
 import { WorkOrdersService } from "@application/services/work-orders.service";
-import { ALERTS_QUEUE, CreateWorkOrderJob } from "@application/jobs/readings-queue.types";
+import { ALERT_EVENTS_QUEUE, CreateWorkOrderJob } from "@application/jobs/readings-queue.types";
 
 const LEVEL_TO_PRIORITY: Record<AlertLevel, WorkOrderPriority> = {
-  attention: "normal",
+  attention: "attention",
   urgent: "urgent",
   critical: "critical",
 };
 
-@Processor(ALERTS_QUEUE)
+@Processor(ALERT_EVENTS_QUEUE)
 export class WorkOrdersProcessor extends WorkerHost {
   private readonly logger = new Logger(WorkOrdersProcessor.name);
 
@@ -34,9 +34,12 @@ export class WorkOrdersProcessor extends WorkerHost {
         scoreAtCreation: score,
       });
       await this.alertsService.updateOsId(alertId, workOrder.id);
+      this.logger.log(
+        `job=${job.name} result=work-order.ready segmentId=${segmentId} alertId=${alertId} workOrderId=${workOrder.id}`,
+      );
     } catch (error: unknown) {
       this.logger.error(
-        `Failed to create work order: segmentId=${segmentId} score=${score} level=${level}`,
+        `job=${job.name} failed segmentId=${segmentId} alertId=${alertId} score=${score} level=${level}`,
         error instanceof Error ? error.stack : String(error),
       );
       throw error;

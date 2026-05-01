@@ -5,6 +5,7 @@ import { WorkOrder, WorkOrderPriority, WorkOrderStatus } from "@domain/entities/
 import { InvalidOperationError, NotFoundError } from "@application/errors";
 import { DrizzleService } from "@infrastructure/database/drizzle.service";
 import { alerts, roadSegments, workOrders } from "@infrastructure/database/schema";
+import { DispatchCronService } from "./dispatch-cron.service";
 
 export type WorkOrderFilters = {
   status?: WorkOrderStatus;
@@ -28,7 +29,10 @@ export type UpdateWorkOrderInput = {
 
 @Injectable()
 export class WorkOrdersService {
-  constructor(private readonly drizzle: DrizzleService) {}
+  constructor(
+    private readonly drizzle: DrizzleService,
+    private readonly dispatchCronService: DispatchCronService,
+  ) {}
 
   async findAll(filters: WorkOrderFilters): Promise<WorkOrder[]> {
     const conditions: SQL[] = [];
@@ -45,6 +49,9 @@ export class WorkOrdersService {
   }
 
   async create(input: CreateWorkOrderInput): Promise<WorkOrder> {
+    const existing = await this.findByAlertId(input.alertId);
+    if (existing) return existing;
+
     const [saved] = await this.drizzle.db
       .insert(workOrders)
       .values({
@@ -60,9 +67,18 @@ export class WorkOrdersService {
         startedAt: null,
         completedAt: null,
       })
+      .onConflictDoNothing({ target: workOrders.alertId })
       .returning();
 
-    return toWorkOrder(saved);
+    if (saved) {
+      this.dispatchCronService.markNeedsReplan();
+      return toWorkOrder(saved);
+    }
+
+    const createdByConcurrentJob = await this.findByAlertId(input.alertId);
+    if (createdByConcurrentJob) return createdByConcurrentJob;
+
+    throw new Error("Failed to create or find work order for alert");
   }
 
   async update(id: string, input: UpdateWorkOrderInput): Promise<WorkOrder> {
@@ -126,6 +142,16 @@ export class WorkOrdersService {
       .select()
       .from(workOrders)
       .where(eq(workOrders.id, id))
+      .limit(1);
+
+    return row ? toWorkOrder(row) : null;
+  }
+
+  private async findByAlertId(alertId: string): Promise<WorkOrder | null> {
+    const [row] = await this.drizzle.db
+      .select()
+      .from(workOrders)
+      .where(eq(workOrders.alertId, alertId))
       .limit(1);
 
     return row ? toWorkOrder(row) : null;

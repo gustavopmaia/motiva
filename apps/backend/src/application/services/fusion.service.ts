@@ -3,7 +3,12 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { ReadingSource } from "@domain/entities/reading.entity";
 import { AlertLevel } from "@domain/entities/alert.entity";
-import { READINGS_QUEUE, ProcessReadingResultJob } from "@application/jobs/readings-queue.types";
+import {
+  DEFAULT_JOB_OPTIONS,
+  SEGMENT_EVENTS_QUEUE,
+  SEGMENT_RISK_LEVEL_CHANGED_JOB,
+  ProcessReadingResultJob,
+} from "@application/jobs/readings-queue.types";
 import { DrizzleService } from "@infrastructure/database/drizzle.service";
 import { roadSegments } from "@infrastructure/database/schema";
 import { eq, sql } from "drizzle-orm";
@@ -26,7 +31,7 @@ function scoreToLevel(score: number): AlertLevel | null {
 export class FusionService {
   constructor(
     private readonly drizzle: DrizzleService,
-    @InjectQueue(READINGS_QUEUE)
+    @InjectQueue(SEGMENT_EVENTS_QUEUE)
     private readonly readingsQueue: Queue,
   ) {}
 
@@ -80,7 +85,10 @@ export class FusionService {
     if (!level) return;
 
     const job: ProcessReadingResultJob = { segmentId, score: currentScore, level, readingId };
-    await this.readingsQueue.add("process-reading-result", job);
+    await this.readingsQueue.add(SEGMENT_RISK_LEVEL_CHANGED_JOB, job, {
+      ...DEFAULT_JOB_OPTIONS,
+      jobId: `${SEGMENT_RISK_LEVEL_CHANGED_JOB}:${segmentId}:${level}:${readingId}`,
+    });
   }
 }
 

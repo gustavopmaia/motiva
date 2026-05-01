@@ -15,7 +15,7 @@ export class CreateWorkOrderRequestDto {
 
   @ApiProperty({
     description: "Operational priority assigned to the work order.",
-    enum: ["normal", "urgent", "critical"],
+    enum: ["attention", "urgent", "critical"],
     example: "urgent",
   })
   priority!: string;
@@ -88,7 +88,7 @@ export class WorkOrderResponseDto {
 
   @ApiProperty({
     description: "Operational priority assigned to the work order.",
-    enum: ["normal", "urgent", "critical"],
+    enum: ["attention", "urgent", "critical"],
     example: "urgent",
   })
   priority!: string;

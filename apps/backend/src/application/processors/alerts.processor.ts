@@ -3,19 +3,22 @@ import { InjectQueue, Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job, Queue } from "bullmq";
 import { AlertsService } from "@application/services/alerts.service";
 import {
-  ALERTS_QUEUE,
-  READINGS_QUEUE,
+  ALERT_EVENTS_QUEUE,
+  ALERT_OPENED_EVENT,
+  DEFAULT_JOB_OPTIONS,
+  SEGMENT_EVENTS_QUEUE,
+  WORK_ORDER_CREATE_JOB,
   CreateWorkOrderJob,
   ProcessReadingResultJob,
 } from "@application/jobs/readings-queue.types";
 
-@Processor(READINGS_QUEUE)
+@Processor(SEGMENT_EVENTS_QUEUE)
 export class AlertsProcessor extends WorkerHost {
   private readonly logger = new Logger(AlertsProcessor.name);
 
   constructor(
     private readonly alertsService: AlertsService,
-    @InjectQueue(ALERTS_QUEUE)
+    @InjectQueue(ALERT_EVENTS_QUEUE)
     private readonly alertsQueue: Queue,
   ) {
     super();
@@ -26,10 +29,16 @@ export class AlertsProcessor extends WorkerHost {
     try {
       const alert = await this.alertsService.createOrFindOpen(segmentId, level, score);
       const payload: CreateWorkOrderJob = { segmentId, score, level, readingId, alertId: alert.id };
-      await this.alertsQueue.add("create-work-order", payload);
+      await this.alertsQueue.add(WORK_ORDER_CREATE_JOB, payload, {
+        ...DEFAULT_JOB_OPTIONS,
+        jobId: `${WORK_ORDER_CREATE_JOB}:${alert.id}`,
+      });
+      this.logger.log(
+        `job=${job.name} event=${ALERT_OPENED_EVENT} result=${WORK_ORDER_CREATE_JOB}.enqueued segmentId=${segmentId} alertId=${alert.id} readingId=${readingId}`,
+      );
     } catch (error: unknown) {
       this.logger.error(
-        `Failed to process reading result: segmentId=${segmentId} score=${score} level=${level}`,
+        `job=${job.name} failed segmentId=${segmentId} score=${score} level=${level}`,
         error instanceof Error ? error.stack : String(error),
       );
       throw error;

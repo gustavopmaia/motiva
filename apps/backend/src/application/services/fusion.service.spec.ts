@@ -1,6 +1,10 @@
 import { FusionService } from "./fusion.service";
 import { Reading } from "@domain/entities/reading.entity";
 import { RoadSegment } from "@domain/entities/road-segment.entity";
+import {
+  DEFAULT_JOB_OPTIONS,
+  SEGMENT_RISK_LEVEL_CHANGED_JOB,
+} from "@application/jobs/readings-queue.types";
 
 const seg = (score: number | null = null): RoadSegment => ({
   id: "seg-1",
@@ -57,8 +61,9 @@ describe("FusionService", () => {
     await service.updateScoreForSegment("seg-1", "r-1");
 
     expect(readingsQueue.add).toHaveBeenCalledWith(
-      "process-reading-result",
+      SEGMENT_RISK_LEVEL_CHANGED_JOB,
       expect.objectContaining({ score: 60, level: "urgent" }),
+      expect.objectContaining(DEFAULT_JOB_OPTIONS),
     );
   });
 
@@ -70,8 +75,9 @@ describe("FusionService", () => {
 
     expect(set).toHaveBeenCalledWith({ scoreCurrent: 40, scoreDivergent: false });
     expect(readingsQueue.add).toHaveBeenCalledWith(
-      "process-reading-result",
+      SEGMENT_RISK_LEVEL_CHANGED_JOB,
       expect.objectContaining({ level: "attention" }),
+      expect.objectContaining(DEFAULT_JOB_OPTIONS),
     );
   });
 

@@ -2,9 +2,14 @@ import { Logger } from "@nestjs/common";
 import { AlertsProcessor } from "./alerts.processor";
 import { Alert } from "@domain/entities/alert.entity";
 import { Job } from "bullmq";
-import { ProcessReadingResultJob } from "@application/jobs/readings-queue.types";
+import {
+  DEFAULT_JOB_OPTIONS,
+  ProcessReadingResultJob,
+  WORK_ORDER_CREATE_JOB,
+} from "@application/jobs/readings-queue.types";
 
 jest.spyOn(Logger.prototype, "error").mockImplementation(() => {});
+jest.spyOn(Logger.prototype, "log").mockImplementation(() => {});
 
 const makeProcessor = (existingAlert: Alert | null = null) => {
   const alertsService = {
@@ -37,8 +42,9 @@ describe("AlertsProcessor", () => {
     );
 
     expect(alertsQueue.add).toHaveBeenCalledWith(
-      "create-work-order",
+      WORK_ORDER_CREATE_JOB,
       expect.objectContaining({ segmentId: "seg-1", level: "urgent" }),
+      expect.objectContaining(DEFAULT_JOB_OPTIONS),
     );
   });
 
@@ -60,8 +66,9 @@ describe("AlertsProcessor", () => {
     );
 
     expect(alertsQueue.add).toHaveBeenCalledWith(
-      "create-work-order",
+      WORK_ORDER_CREATE_JOB,
       expect.objectContaining({ alertId: "a-1", segmentId: "seg-1", level: "urgent" }),
+      expect.objectContaining(DEFAULT_JOB_OPTIONS),
     );
   });
 

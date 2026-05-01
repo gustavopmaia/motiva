@@ -16,13 +16,18 @@ const openOrder: WorkOrder = {
   completedAt: null,
 };
 
-const makeService = (existing: WorkOrder | null = openOrder) => {
+const makeService = (existing: WorkOrder | null = openOrder, saved: WorkOrder | null = null) => {
+  const dispatchCronService = { markNeedsReplan: jest.fn() };
   const whereSelect = jest
     .fn()
     .mockReturnValue({ limit: jest.fn().mockResolvedValue(existing ? [existing] : []) });
   const select = jest.fn().mockReturnValue({
     from: jest.fn().mockReturnValue({ where: whereSelect }),
   });
+  const returningInsert = jest.fn().mockResolvedValue(saved ? [saved] : []);
+  const onConflictDoNothing = jest.fn().mockReturnValue({ returning: returningInsert });
+  const valuesInsert = jest.fn().mockReturnValue({ onConflictDoNothing });
+  const insert = jest.fn().mockReturnValue({ values: valuesInsert });
   const whereUpdate = jest.fn().mockResolvedValue([]);
   const set = jest.fn().mockReturnValue({ where: whereUpdate });
   const update = jest.fn().mockReturnValue({ set });
@@ -30,6 +35,7 @@ const makeService = (existing: WorkOrder | null = openOrder) => {
   const drizzle = {
     db: {
       select,
+      insert,
       transaction: jest
         .fn()
         .mockImplementation((fn: (txArg: typeof tx) => Promise<void>) => fn(tx)),
@@ -37,13 +43,43 @@ const makeService = (existing: WorkOrder | null = openOrder) => {
   };
 
   return {
-    service: new WorkOrdersService(drizzle as any),
+    service: new WorkOrdersService(drizzle as any, dispatchCronService as any),
+    dispatchCronService,
     drizzle,
+    insert,
     update,
   };
 };
 
 describe("WorkOrdersService", () => {
+  it("reutiliza OS existente quando o alerta já possui uma OS", async () => {
+    const { service, dispatchCronService } = makeService(openOrder);
+
+    const result = await service.create({
+      segmentId: "seg-1",
+      alertId: "a-1",
+      priority: "urgent",
+      scoreAtCreation: 70,
+    });
+
+    expect(result.id).toBe("wo-1");
+    expect(dispatchCronService.markNeedsReplan).not.toHaveBeenCalled();
+  });
+
+  it("marca replanejamento quando cria uma OS nova", async () => {
+    const { service, dispatchCronService } = makeService(null, openOrder);
+
+    const result = await service.create({
+      segmentId: "seg-1",
+      alertId: "a-1",
+      priority: "urgent",
+      scoreAtCreation: 70,
+    });
+
+    expect(result.id).toBe("wo-1");
+    expect(dispatchCronService.markNeedsReplan).toHaveBeenCalledTimes(1);
+  });
+
   it("conclui a OS e executa as atualizações em transação", async () => {
     const { service, drizzle, update } = makeService();
 

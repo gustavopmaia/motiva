@@ -1,5 +1,5 @@
 export type WorkOrderStatus = "open" | "in_progress" | "completed";
-export type WorkOrderPriority = "normal" | "urgent" | "critical";
+export type WorkOrderPriority = "attention" | "urgent" | "critical";
 
 export type WorkOrder = {
   id: string;

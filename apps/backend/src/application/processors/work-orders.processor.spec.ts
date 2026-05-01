@@ -4,6 +4,7 @@ import { Job } from "bullmq";
 import { CreateWorkOrderJob } from "@application/jobs/readings-queue.types";
 
 jest.spyOn(Logger.prototype, "error").mockImplementation(() => {});
+jest.spyOn(Logger.prototype, "log").mockImplementation(() => {});
 
 const makeProcessor = () => {
   const workOrdersService = { create: jest.fn().mockResolvedValue({ id: "wo-1" }) };
@@ -33,7 +34,7 @@ describe("WorkOrdersProcessor", () => {
     );
   });
 
-  it("deve criar work order com prioridade normal para alerta attention", async () => {
+  it("deve criar work order com prioridade attention para alerta attention", async () => {
     const { processor, workOrdersService } = makeProcessor();
 
     await processor.process(
@@ -47,7 +48,7 @@ describe("WorkOrdersProcessor", () => {
     );
 
     expect(workOrdersService.create).toHaveBeenCalledWith(
-      expect.objectContaining({ priority: "normal" }),
+      expect.objectContaining({ priority: "attention" }),
     );
   });
 

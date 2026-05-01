@@ -6,10 +6,10 @@ import { ReadingsController } from "@infrastructure/http/readings.controller";
 import { ReadingsMqttHandler } from "@infrastructure/mqtt/readings.mqtt.handler";
 import { DatabaseModule } from "./database.module";
 import { AuthModule } from "./auth.module";
-import { READINGS_QUEUE } from "@application/jobs/readings-queue.types";
+import { SEGMENT_EVENTS_QUEUE } from "@application/jobs/readings-queue.types";
 
 @Module({
-  imports: [DatabaseModule, AuthModule, BullModule.registerQueue({ name: READINGS_QUEUE })],
+  imports: [DatabaseModule, AuthModule, BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE })],
   providers: [FusionService, ReadingsService, ReadingsMqttHandler],
   controllers: [ReadingsController],
 })
