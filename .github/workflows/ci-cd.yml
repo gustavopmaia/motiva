@@ -1,9 +1,8 @@
-name: Deploy Backend
+name: CI / Deploy Backend
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - ".github/workflows/ci-cd.yml"
       - "package.json"
@@ -14,7 +13,31 @@ on:
       - "docker-compose.yml"
 
 jobs:
+  ci:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build --workspace=backend
+
+      - name: Test
+        run: npm test --workspace=backend
+
   deploy:
+    name: Deploy
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
@@ -35,6 +58,5 @@ jobs:
 
             docker compose build backend
             docker compose run --rm --no-deps backend npm run --workspace backend migrate
-            docker compose down --remove-orphans
             docker compose up -d --force-recreate --remove-orphans backend
             docker image prune -f
