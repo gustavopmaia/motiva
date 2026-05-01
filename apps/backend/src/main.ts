@@ -6,7 +6,9 @@ import { setupDocs } from "@infrastructure/http/docs";
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // app.enableCors();
+  app.enableCors({
+    origin: '*'
+  });
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
