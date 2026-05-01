@@ -4,33 +4,31 @@ slug: /
 title: Introdução
 ---
 
-# Motiva
+# Cultiva
 
-**Por que roçagem de rodovias ainda é feita no escuro?**
+Concessionárias de rodovias têm obrigação contratual de manter a vegetação nas margens dentro de limites seguros. Vegetação alta encobre placas, fecha a visibilidade em curvas e aumenta o risco de incêndios. Cada centímetro a mais é um passivo de multa e de responsabilidade civil.
 
-Concessionárias de rodovias são obrigadas por contrato a manter a vegetação nas margens dentro de limites seguros. Vegetação alta encobre placas, reduz visibilidade em curvas e aumenta o risco de incêndios. Cada centímetro a mais é um passivo de multa e de responsabilidade civil.
+O processo hoje é manual e reativo: inspetores percorrem os trechos, anotam onde a vegetação está alta e acionam uma equipe dias depois. Até a equipe chegar, o problema cresceu.
 
-O processo hoje é manual, caro e reativo: inspetores percorrem os trechos, anotam onde a vegetação está alta e acionam uma equipe dias depois. Até a equipe chegar, o problema cresceu.
+## O que o Roçadinha faz
 
-**O Motiva resolve isso.**
+O sistema funde leituras de três fontes — sensores IoT fixos nas margens, câmeras embarcadas em veículos de patrulha e imagens de satélite Sentinel-2 — em um score único por trecho de rodovia. Quando o score cruza um limiar, o sistema abre um alerta e cria uma ordem de serviço automaticamente. O módulo de despacho agrupa as ordens abertas em rotas otimizadas por equipe de campo.
 
-Sensores já existentes — satélites Sentinel-2, câmeras embarcadas em veículos de patrulha e sensores IoT fixados nas margens — geram dados continuamente. O Motiva funde esses dados em um score único por trecho, abre alertas automaticamente quando o score ultrapassa limiares e cria ordens de serviço para as equipes de campo.
+Do sensor ao acionamento da equipe: minutos, não dias.
 
-Mais do que monitorar, o sistema decide e organiza: o módulo de despacho agrupa as ordens de serviço por equipe, ordena por prioridade e distância, e entrega uma rota pronta para execução.
+## Por que essa arquitetura
 
-## O que o Motiva entrega
+**Três fontes com pesos diferentes.** IoT é o mais confiável para medir altura com precisão (peso 50%). Câmera embarcada captura contexto visual com boa cobertura (35%). Satélite tem baixa frequência de atualização e depende de cobertura de nuvens (15%). A fusão ponderada evita que uma fonte ruidosa contamine o score inteiro.
 
-- **Detecção contínua** — sem depender de inspeção manual ou calendário fixo
-- **Resposta rápida** — do sensor ao acionamento da equipe em minutos, não dias
-- **Rotas otimizadas** — as equipes recebem uma sequência de atendimento que minimiza deslocamento e maximiza cobertura diária
-- **Rastreabilidade completa** — histórico de scores, alertas e intervenções por trecho
+**Processamento assíncrono com filas.** Leituras chegam em volume e precisam acionar alertas e ordens de serviço sem bloquear o endpoint de ingestão. Dois workers BullMQ processam os eventos em background com retry automático e idempotência garantida.
 
-## Como navegar
+**Transação atômica na conclusão.** Quando uma equipe conclui uma ordem de serviço, três coisas precisam acontecer juntas: a OS fecha, o score do segmento zera e o alerta fecha. Qualquer falha parcial deixaria o sistema num estado inconsistente. A conclusão acontece numa única transação de banco.
 
-| Seção                        | O que cobre                                |
-| ---------------------------- | ------------------------------------------ |
-| [Visão Geral](./visao-geral) | Segmentos, sensores, scores e alertas      |
-| [Arquitetura](./arquitetura) | Componentes, filas e banco de dados        |
-| [Fluxo de Dados](./fluxo)    | Do sensor à conclusão da OS, passo a passo |
-| [Despacho](./dispatch)       | Como as rotas são geradas para as equipes  |
-| [Backend](./backend)         | API, autenticação e detalhes técnicos      |
+## Navegação
+
+| Seção                           | Conteúdo                                          |
+| ------------------------------- | ------------------------------------------------- |
+| [Arquitetura](./arquitetura)    | Componentes, filas, banco de dados e autenticação |
+| [Backend](./backend)            | Como rodar, variáveis de ambiente e endpoints     |
+| [IoT & Dispositivos](./iot)     | Hardware, firmware e protocolo MQTT               |
+| [Pipeline de Dados](./pipeline) | Ingestão, fusão, alertas e ordens de serviço      |

@@ -3,8 +3,8 @@ import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 
 const config: Config = {
-  title: "Motiva",
-  tagline: "Sistema inteligente de monitoramento de vegetação em rodovias",
+  title: "Cultiva",
+  tagline: "Monitoramento contínuo de vegetação em rodovias",
   favicon: "img/favicon.ico",
 
   future: {
