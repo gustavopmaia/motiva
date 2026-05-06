@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, desc, eq, SQL } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, SQL } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { WorkOrder, WorkOrderPriority, WorkOrderStatus } from "@domain/entities/work-order.entity";
 import { InvalidOperationError, NotFoundError } from "@application/errors";
@@ -92,17 +92,23 @@ export class WorkOrdersService {
     const startedAt =
       existing.startedAt === null && newStatus === "in_progress" ? new Date() : existing.startedAt;
 
+    const newTeam = input.team !== undefined ? input.team : existing.team;
+
     const [updated] = await this.drizzle.db
       .update(workOrders)
       .set({
         status: newStatus,
-        team: input.team !== undefined ? input.team : existing.team,
+        team: newTeam,
         observation: input.observation !== undefined ? input.observation : existing.observation,
         startedAt,
         completedAt: existing.completedAt,
       })
       .where(eq(workOrders.id, id))
       .returning();
+
+    if (input.team !== undefined && newTeam !== existing.team) {
+      this.dispatchCronService.markNeedsReplan();
+    }
 
     return toWorkOrder(updated);
   }
@@ -118,15 +124,36 @@ export class WorkOrdersService {
     const startedAt = existing.startedAt ?? now;
 
     await this.drizzle.db.transaction(async (tx) => {
+      // Complete this work order
       await tx
         .update(workOrders)
         .set({ status: "completed", startedAt, completedAt: now })
         .where(eq(workOrders.id, id));
+
+      // A segment cut fixes all outstanding vegetation issues on it — complete any
+      // other open/in-progress work orders for the same segment so they don't
+      // re-appear in dispatch or on the field team's list.
+      await tx
+        .update(workOrders)
+        .set({ status: "completed", completedAt: now })
+        .where(
+          and(
+            eq(workOrders.segmentId, existing.segmentId),
+            ne(workOrders.id, id),
+            ne(workOrders.status, "completed"),
+          ),
+        );
+
+      // Reset the segment score — the grass was just cut
       await tx
         .update(roadSegments)
         .set({ scoreCurrent: 0, scoreDivergent: false })
         .where(eq(roadSegments.id, existing.segmentId));
-      await tx.update(alerts).set({ closedAt: now }).where(eq(alerts.id, existing.alertId));
+
+      await tx
+        .update(alerts)
+        .set({ closedAt: now })
+        .where(and(eq(alerts.segmentId, existing.segmentId), isNull(alerts.closedAt)));
     });
 
     return {
@@ -137,7 +164,7 @@ export class WorkOrdersService {
     };
   }
 
-  private async findById(id: string): Promise<WorkOrder | null> {
+  async findById(id: string): Promise<WorkOrder | null> {
     const [row] = await this.drizzle.db
       .select()
       .from(workOrders)

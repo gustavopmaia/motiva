@@ -1,10 +1,15 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { Team } from "@domain/entities/team.entity";
 import { WorkOrderPriority } from "@domain/entities/work-order.entity";
 import { DrizzleService } from "@infrastructure/database/drizzle.service";
-import { routeItems, routes, teams } from "@infrastructure/database/schema";
+import {
+  routeItems,
+  routes,
+  teams,
+  workOrders as workOrdersTable,
+} from "@infrastructure/database/schema";
 
 type DispatchWorkOrder = {
   id: string;
@@ -39,10 +44,12 @@ export class DispatchService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async runDispatch(): Promise<void> {
-    const [workOrders, activeTeams] = await Promise.all([
+    const [workOrders, activeTeams, busyTeamNames] = await Promise.all([
       this.findDispatchableWorkOrders(),
       this.findActiveTeams(),
+      this.findBusyTeamNames(),
     ]);
+
     const workOrdersByTeam = new Map<string, DispatchWorkOrder[]>();
     let totalUncovered = 0;
 
@@ -65,24 +72,60 @@ export class DispatchService {
     }
 
     let totalRoutesCreated = 0;
+    let totalTeamsSkipped = 0;
 
-    await this.drizzle.db.transaction(async (tx) => {
-      await tx.execute(sql`
-        DELETE FROM route_items
-        WHERE route_id IN (
-          SELECT id FROM routes WHERE status != 'locked'
-        )
-      `);
-      await tx.execute(sql`DELETE FROM routes WHERE status != 'locked'`);
+    // Process each team independently so a busy team's routes are never touched
+    for (const team of activeTeams) {
+      if (busyTeamNames.has(team.name)) {
+        // A field user on this team has at least one in_progress work order — leave
+        // their current route alone until all active work is completed or reset to open.
+        totalTeamsSkipped += 1;
+        this.logger.log({
+          action: "dispatch.team_skipped",
+          reason: "in_progress_work_orders",
+          teamId: team.id,
+          teamName: team.name,
+        });
+        continue;
+      }
 
-      if (workOrders.length === 0 || activeTeams.length === 0) return;
+      const sortedWorkOrders = sortWorkOrders(workOrdersByTeam.get(team.id) ?? []);
 
-      for (const team of activeTeams) {
-        const sortedWorkOrders = sortWorkOrders(workOrdersByTeam.get(team.id) ?? []);
-        if (sortedWorkOrders.length === 0) continue;
+      await this.drizzle.db.transaction(async (tx) => {
+        // Clear team assignment for work orders that are in this team's non-locked
+        // routes and will be re-planned. Skip work orders also in a locked route.
+        await tx.execute(sql`
+          UPDATE work_orders
+          SET team = NULL
+          WHERE id IN (
+            SELECT ri.work_order_id
+            FROM route_items ri
+            JOIN routes r ON r.id = ri.route_id
+            WHERE r.team_id = ${team.id}
+              AND r.status != 'locked'
+          )
+          AND id NOT IN (
+            SELECT ri.work_order_id
+            FROM route_items ri
+            JOIN routes r ON r.id = ri.route_id
+            WHERE r.status = 'locked'
+          )
+        `);
+
+        await tx.execute(sql`
+          DELETE FROM route_items
+          WHERE route_id IN (
+            SELECT id FROM routes WHERE team_id = ${team.id} AND status != 'locked'
+          )
+        `);
+        await tx.execute(sql`
+          DELETE FROM routes WHERE team_id = ${team.id} AND status != 'locked'
+        `);
+
+        if (sortedWorkOrders.length === 0) return;
 
         const capacity = Math.max(0, team.capacityPerDay);
-        if (capacity === 0) continue;
+        if (capacity === 0) return;
 
         let dayOffset = 0;
         for (let cursor = 0; cursor < sortedWorkOrders.length; cursor += capacity) {
@@ -108,17 +151,29 @@ export class DispatchService {
             })),
           );
 
+          // Write the team name onto the work orders so field users can find them
+          await tx
+            .update(workOrdersTable)
+            .set({ team: team.name })
+            .where(
+              inArray(
+                workOrdersTable.id,
+                batch.map((wo) => wo.id),
+              ),
+            );
+
           totalRoutesCreated += 1;
           dayOffset += 1;
         }
-      }
-    });
+      });
+    }
 
     this.logger.log({
       action: "dispatch.run",
       totalWorkOrders: workOrders.length,
       totalUncovered,
       totalRoutesCreated,
+      totalTeamsSkipped,
     });
   }
 
@@ -134,7 +189,7 @@ export class DispatchService {
         rs.km_end
       FROM work_orders wo
       INNER JOIN road_segments rs ON rs.id = wo.segment_id
-      WHERE wo.status != 'completed'
+      WHERE wo.status = 'open'
         AND NOT EXISTS (
           SELECT 1
           FROM route_items ri
@@ -153,6 +208,15 @@ export class DispatchService {
       kmStart: Number(row.km_start),
       kmEnd: Number(row.km_end),
     }));
+  }
+
+  private async findBusyTeamNames(): Promise<Set<string>> {
+    const rows = await this.drizzle.db.execute<{ team: string }>(sql`
+      SELECT DISTINCT team
+      FROM work_orders
+      WHERE status = 'in_progress' AND team IS NOT NULL
+    `);
+    return new Set(rows.map((r) => r.team));
   }
 
   private async findActiveTeams(): Promise<Team[]> {
@@ -194,12 +258,9 @@ function findResponsibleTeam(workOrder: DispatchWorkOrder, activeTeams: Team[]):
   return activeTeams.find(
     (team) =>
       team.roadName === workOrder.roadName &&
-      rangesOverlap(workOrder.kmStart, workOrder.kmEnd, team.kmStart, team.kmEnd),
+      workOrder.kmStart <= team.kmEnd &&
+      workOrder.kmEnd >= team.kmStart,
   );
-}
-
-function rangesOverlap(startA: number, endA: number, startB: number, endB: number): boolean {
-  return startA <= endB && endA >= startB;
 }
 
 function dateFromToday(dayOffset: number): string {

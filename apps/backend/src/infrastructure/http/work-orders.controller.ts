@@ -2,11 +2,14 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
   Query,
+  Request,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -25,9 +28,11 @@ import {
 } from "@nestjs/swagger";
 import { WorkOrderStatus, WorkOrderPriority, WorkOrder } from "@domain/entities/work-order.entity";
 import { WorkOrdersService } from "@application/services/work-orders.service";
+import { AuthService } from "@application/services/auth.service";
 import { JwtAuthGuard } from "@infrastructure/http/guards/jwt.guard";
 import { RolesGuard } from "@infrastructure/http/guards/roles.guard";
 import { Roles } from "@infrastructure/http/decorators/roles.decorator";
+import { JwtPayload } from "@application/security/jwt-payload";
 import {
   CreateWorkOrderRequestDto,
   UpdateWorkOrderRequestDto,
@@ -35,6 +40,10 @@ import {
 } from "./dto/work-orders.docs";
 
 const VALID_STATUSES: WorkOrderStatus[] = ["open", "in_progress", "completed"];
+// PATCH may only move a work order between open and in_progress.
+// Completing a work order requires POST /:id/complete, which also resets the
+// segment score and closes every open alert for that segment.
+const PATCHABLE_STATUSES: WorkOrderStatus[] = ["open", "in_progress"];
 const VALID_PRIORITIES: WorkOrderPriority[] = ["attention", "urgent", "critical"];
 
 @ApiTags("Work orders")
@@ -42,7 +51,10 @@ const VALID_PRIORITIES: WorkOrderPriority[] = ["attention", "urgent", "critical"
 @Controller("work-orders")
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
-  constructor(private readonly workOrdersService: WorkOrdersService) {}
+  constructor(
+    private readonly workOrdersService: WorkOrdersService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -71,8 +83,20 @@ export class WorkOrdersController {
   @ApiUnauthorizedResponse({
     description: "The JWT access token is missing, invalid, expired, or cannot be verified.",
   })
-  async findAll(@Query("status") status?: string, @Query("team") team?: string) {
-    const filters = parseWorkOrderFilters(status, team);
+  async findAll(
+    @Request() req: { user: JwtPayload },
+    @Query("status") status?: string,
+    @Query("team") team?: string,
+  ) {
+    let filters = parseWorkOrderFilters(status, team);
+
+    if (req.user.role === "field") {
+      const userTeam = await this.authService.findTeamByUserId(req.user.sub);
+      // Field user not assigned to any team sees nothing
+      if (!userTeam) return [];
+      filters = { ...filters, team: userTeam.name };
+    }
+
     const workOrders = await this.workOrdersService.findAll(filters);
     return workOrders.map(this.toResponse);
   }
@@ -124,8 +148,22 @@ export class WorkOrdersController {
     description: "The JWT access token is missing, invalid, expired, or cannot be verified.",
   })
   @ApiNotFoundResponse({ description: "No work order exists for the provided identifier." })
-  async update(@Param("id") id: string, @Body() body: Record<string, unknown>) {
-    const wo = await this.workOrdersService.update(id, parseUpdateWorkOrderBody(body));
+  async update(
+    @Param("id") id: string,
+    @Body() body: Record<string, unknown>,
+    @Request() req: { user: JwtPayload },
+  ) {
+    const input = parseUpdateWorkOrderBody(body);
+
+    if (req.user.role === "field") {
+      // Field users cannot reassign work orders to a different team — that is a manager action
+      if (input.team !== undefined) {
+        throw new ForbiddenException("Field users cannot reassign work orders");
+      }
+      await this.assertFieldUserOwnsWorkOrder(req.user.sub, id);
+    }
+
+    const wo = await this.workOrdersService.update(id, input);
     return this.toResponse(wo);
   }
 
@@ -148,9 +186,23 @@ export class WorkOrdersController {
     description: "The JWT access token is missing, invalid, expired, or cannot be verified.",
   })
   @ApiNotFoundResponse({ description: "No work order exists for the provided identifier." })
-  async complete(@Param("id") id: string) {
+  async complete(@Param("id") id: string, @Request() req: { user: JwtPayload }) {
+    if (req.user.role === "field") {
+      await this.assertFieldUserOwnsWorkOrder(req.user.sub, id);
+    }
+
     const wo = await this.workOrdersService.complete(id);
     return this.toResponse(wo);
+  }
+
+  private async assertFieldUserOwnsWorkOrder(userId: string, workOrderId: string) {
+    const wo = await this.workOrdersService.findById(workOrderId);
+    if (!wo) throw new NotFoundException("Work order not found");
+
+    const userTeam = await this.authService.findTeamByUserId(userId);
+    if (!userTeam || wo.team !== userTeam.name) {
+      throw new ForbiddenException("You can only modify work orders assigned to your team");
+    }
   }
 
   private toResponse(wo: WorkOrder) {
@@ -222,10 +274,18 @@ function parseCreateWorkOrderBody(body: Record<string, unknown>) {
 
 function parseUpdateWorkOrderBody(body: Record<string, unknown>) {
   const { status, team, observation } = body;
-  if (status !== undefined && !VALID_STATUSES.includes(status as WorkOrderStatus)) {
+  if (status !== undefined && !PATCHABLE_STATUSES.includes(status as WorkOrderStatus)) {
     throw new BadRequestException({
       message: "Invalid work order payload.",
-      details: { fields: [{ field: "status", message: "status is invalid" }] },
+      details: {
+        fields: [
+          {
+            field: "status",
+            message:
+              "status must be open or in_progress; use POST /:id/complete to complete a work order",
+          },
+        ],
+      },
     });
   }
 

@@ -5,13 +5,32 @@ import { Alert, AlertLevel } from "@domain/entities/alert.entity";
 import { DrizzleService } from "@infrastructure/database/drizzle.service";
 import { alerts } from "@infrastructure/database/schema";
 
+export type AlertTerritory = {
+  roadName: string;
+  kmStart: number;
+  kmEnd: number;
+};
+
 @Injectable()
 export class AlertsService {
   constructor(private readonly drizzle: DrizzleService) {}
 
-  async findAll(): Promise<Alert[]> {
-    const rows = await this.drizzle.db.select().from(alerts).orderBy(desc(alerts.createdAt));
-    return rows.map(toAlert);
+  async findAll(territory?: AlertTerritory): Promise<Alert[]> {
+    if (!territory) {
+      const rows = await this.drizzle.db.select().from(alerts).orderBy(desc(alerts.createdAt));
+      return rows.map(toAlert);
+    }
+
+    const rows = await this.drizzle.db.execute<AlertInsertRow>(sql`
+      SELECT a.id, a.segment_id, a.os_id, a.level, a.score, a.channels, a.created_at, a.closed_at
+      FROM alerts a
+      JOIN road_segments rs ON rs.id = a.segment_id
+      WHERE rs.road_name = ${territory.roadName}
+        AND CAST(rs.km_start AS FLOAT) <= ${territory.kmEnd}
+        AND CAST(rs.km_end AS FLOAT) >= ${territory.kmStart}
+      ORDER BY a.created_at DESC
+    `);
+    return rows.map(toAlertFromInsert);
   }
 
   async createOrFindOpen(segmentId: string, level: AlertLevel, score: number): Promise<Alert> {

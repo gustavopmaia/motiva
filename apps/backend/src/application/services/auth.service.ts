@@ -14,7 +14,21 @@ import {
 } from "@application/errors";
 import { validatePasswordStrength } from "@application/security/password-strength";
 import { DrizzleService } from "@infrastructure/database/drizzle.service";
-import { apiKeys, passwordResetTokens, users } from "@infrastructure/database/schema";
+import {
+  apiKeys,
+  passwordResetTokens,
+  teamMembers,
+  teams,
+  users,
+} from "@infrastructure/database/schema";
+
+export type TeamInfo = {
+  id: string;
+  name: string;
+  roadName: string;
+  kmStart: number;
+  kmEnd: number;
+};
 
 const RESET_CODE = "112233";
 const RESET_WINDOW_MS = 15 * 60 * 1000;
@@ -172,6 +186,23 @@ export class AuthService {
       .limit(1);
 
     return row ? toApiKey(row) : null;
+  }
+
+  async findTeamByUserId(userId: string): Promise<TeamInfo | null> {
+    const [row] = await this.drizzle.db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        roadName: teams.roadName,
+        kmStart: teams.kmStart,
+        kmEnd: teams.kmEnd,
+      })
+      .from(teamMembers)
+      .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+      .where(eq(teamMembers.userId, userId))
+      .limit(1);
+
+    return row ? { ...row, kmStart: Number(row.kmStart), kmEnd: Number(row.kmEnd) } : null;
   }
 
   private async findUserByEmail(email: string): Promise<User | null> {
