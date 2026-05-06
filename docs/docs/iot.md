@@ -7,15 +7,24 @@ title: IoT & Dispositivos
 
 ## Hardware
 
-Cada nó IoT usa três componentes:
+Cada nó IoT usa 6 componentes:
 
-| Componente  | Função                                                                     |
-| ----------- | -------------------------------------------------------------------------- |
-| **ESP32**   | Microcontrolador principal — WiFi/GSM, lógica de leitura e publicação MQTT |
-| **HC-SR04** | Sensor ultrassônico — mede a distância até o topo da vegetação em cm       |
-| **SIM800L** | Módulo GSM/GPRS — conectividade via rede celular onde não há WiFi          |
+| Componente  | Função                                                                                    |
+| ----------- | ----------------------------------------------------------------------------------------- |
+| **ESP32**   | Microcontrolador principal — WiFi/GSM, lógica de leitura e publicação MQTT                |
+| **VL53L0X** | Sensor ToF Laser — mede a distância até o topo da vegetação em cm com emissão de um laser |
+| **TP4056**  | Módulo de carregamento - permite que o painel solar carregue a bateria                    |
+| **XL6009**  | Módulo regulador de tensão - regula a voltagem a correta para a alimentação do ESP32      |  
+| **Bateria 18650** | Fonte de energia que alimenta o ESP32 com o sensor                                  |
+| **Placa Solar (W a definir)**  | Painel que carregará a bateria via energia solar                     |
 
-O HC-SR04 é instalado invertido acima da vegetação. A distância medida é convertida em altura da planta subtraindo a distância do sensor ao solo.
+**Lógica de funcionamento**
+
+Painel Solar -> TP4056 -> Bateria 18650 -> XL6009 -> ESP32 -> VL53L0X
+
+**Sensor**
+
+O VL53L0X é instalado invertido acima da vegetação, seja em um poste ou, caso não haja uma estrutura para implantação do sensor, em um apoio implatado para o sensor. A distância medida é convertida em altura da planta subtraindo a distância do sensor ao solo.
 
 ## Protocolo MQTT
 
