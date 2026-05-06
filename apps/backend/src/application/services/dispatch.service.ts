@@ -37,6 +37,8 @@ const PRIORITY_WEIGHT: Record<WorkOrderPriority, number> = {
   attention: 2,
 };
 
+const MAX_ROUTE_SPAN_KM = 30;
+
 @Injectable()
 export class DispatchService {
   private readonly logger = new Logger(DispatchService.name);
@@ -89,11 +91,11 @@ export class DispatchService {
         continue;
       }
 
-      const sortedWorkOrders = sortWorkOrders(workOrdersByTeam.get(team.id) ?? []);
+      const capacity = Math.max(0, team.capacityPerDay);
+      const batches =
+        capacity > 0 ? buildGeographicBatches(workOrdersByTeam.get(team.id) ?? [], capacity) : [];
 
       await this.drizzle.db.transaction(async (tx) => {
-        // Clear team assignment for work orders that are in this team's non-locked
-        // routes and will be re-planned. Skip work orders also in a locked route.
         await tx.execute(sql`
           UPDATE work_orders
           SET team = NULL
@@ -122,14 +124,10 @@ export class DispatchService {
           DELETE FROM routes WHERE team_id = ${team.id} AND status != 'locked'
         `);
 
-        if (sortedWorkOrders.length === 0) return;
-
-        const capacity = Math.max(0, team.capacityPerDay);
-        if (capacity === 0) return;
+        if (batches.length === 0) return;
 
         let dayOffset = 0;
-        for (let cursor = 0; cursor < sortedWorkOrders.length; cursor += capacity) {
-          const batch = sortedWorkOrders.slice(cursor, cursor + capacity);
+        for (const batch of batches) {
           const date = dateFromToday(dayOffset);
 
           const routeId = randomUUID();
@@ -151,7 +149,6 @@ export class DispatchService {
             })),
           );
 
-          // Write the team name onto the work orders so field users can find them
           await tx
             .update(workOrdersTable)
             .set({ team: team.name })
@@ -242,16 +239,51 @@ export class DispatchService {
   }
 }
 
-function sortWorkOrders(workOrders: DispatchWorkOrder[]): DispatchWorkOrder[] {
-  return [...workOrders].sort((a, b) => {
+function buildGeographicBatches(
+  workOrders: DispatchWorkOrder[],
+  capacityPerDay: number,
+): DispatchWorkOrder[][] {
+  const sorted = [...workOrders].sort((a, b) => {
     const priority = PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
     if (priority !== 0) return priority;
-
-    const createdAt = a.createdAt.getTime() - b.createdAt.getTime();
-    if (createdAt !== 0) return createdAt;
-
-    return a.kmStart - b.kmStart;
+    return a.createdAt.getTime() - b.createdAt.getTime();
   });
+
+  const used = new Set<string>();
+  const batches: DispatchWorkOrder[][] = [];
+
+  for (const seed of sorted) {
+    if (used.has(seed.id)) continue;
+
+    const batch: DispatchWorkOrder[] = [seed];
+    used.add(seed.id);
+
+    let minKm = seed.kmStart;
+    let maxKm = seed.kmEnd;
+
+    for (const candidate of sorted) {
+      if (used.has(candidate.id)) continue;
+      if (batch.length >= capacityPerDay) break;
+
+      const newMin = Math.min(minKm, candidate.kmStart);
+      const newMax = Math.max(maxKm, candidate.kmEnd);
+
+      if (newMax - newMin > MAX_ROUTE_SPAN_KM) continue;
+
+      const gap = candidate.kmStart > maxKm ? candidate.kmStart - maxKm : minKm - candidate.kmEnd;
+      if (gap > MAX_ROUTE_SPAN_KM) continue;
+
+      batch.push(candidate);
+      used.add(candidate.id);
+      minKm = newMin;
+      maxKm = newMax;
+    }
+
+    batch.sort((a, b) => a.kmStart - b.kmStart);
+    batches.push(batch);
+  }
+
+  return batches;
 }
 
 function findResponsibleTeam(workOrder: DispatchWorkOrder, activeTeams: Team[]): Team | undefined {
