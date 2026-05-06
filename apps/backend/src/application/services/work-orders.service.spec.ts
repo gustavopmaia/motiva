@@ -88,7 +88,7 @@ describe("WorkOrdersService", () => {
     expect(result.status).toBe("completed");
     expect(result.completedAt).toBeInstanceOf(Date);
     expect(drizzle.db.transaction).toHaveBeenCalledTimes(1);
-    expect(update).toHaveBeenCalledTimes(3);
+    expect(update).toHaveBeenCalledTimes(4);
   });
 
   it("lança InvalidOperationError ao concluir OS já concluída", async () => {
