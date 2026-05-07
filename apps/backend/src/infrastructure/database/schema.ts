@@ -1,6 +1,7 @@
 import {
   boolean,
   customType,
+  date,
   doublePrecision,
   index,
   integer,
@@ -10,8 +11,10 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 const lineStringGeometry = customType<{ data: string }>({
   dataType() {
@@ -25,7 +28,6 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   password: text("password").notNull(),
   role: text("role").notNull().default("field"),
-  stripeCustomerId: text("stripe_customer_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -105,9 +107,13 @@ export const alerts = pgTable(
     score: doublePrecision("score").notNull(),
     channels: jsonb("channels").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    closedAt: timestamp("closed_at"),
   },
   (table) => ({
     alertsSegmentLevelIndex: index("alerts_segment_level_idx").on(table.segmentId, table.level),
+    alertsOpenSegmentLevelUnique: uniqueIndex("alerts_open_segment_level_unique")
+      .on(table.segmentId, table.level)
+      .where(sql`${table.closedAt} IS NULL`),
   }),
 );
 
@@ -131,7 +137,110 @@ export const workOrders = pgTable(
     completedAt: timestamp("completed_at"),
   },
   (table) => ({
+    workOrdersAlertIdUnique: uniqueIndex("work_orders_alert_id_unique").on(table.alertId),
     workOrdersStatusIdx: index("work_orders_status_idx").on(table.status),
     workOrdersSegmentIdx: index("work_orders_segment_idx").on(table.segmentId),
+  }),
+);
+
+export const teams = pgTable(
+  "teams",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    baseLat: doublePrecision("base_lat").notNull(),
+    baseLng: doublePrecision("base_lng").notNull(),
+    roadName: text("road_name").notNull(),
+    kmStart: numeric("km_start", { precision: 10, scale: 3 }).notNull(),
+    kmEnd: numeric("km_end", { precision: 10, scale: 3 }).notNull(),
+    capacityPerDay: integer("capacity_per_day").notNull(),
+    active: boolean("active").default(true).notNull(),
+  },
+  (table) => ({
+    teamsActiveRoadRangeIdx: index("teams_active_road_range_idx").on(
+      table.active,
+      table.roadName,
+      table.kmStart,
+      table.kmEnd,
+    ),
+  }),
+);
+
+export const teamMembers = pgTable(
+  "team_members",
+  {
+    id: uuid("id").primaryKey(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    role: text("role").notNull(),
+  },
+  (table) => ({
+    teamMembersTeamUserUnique: unique("team_members_team_user_unique").on(
+      table.teamId,
+      table.userId,
+    ),
+  }),
+);
+
+export const routes = pgTable(
+  "routes",
+  {
+    id: uuid("id").primaryKey(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id),
+    date: date("date").notNull(),
+    status: text("status").notNull().default("pending_approval"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    routesTeamDateIdx: index("routes_team_date_idx").on(table.teamId, table.date),
+    routesStatusIdx: index("routes_status_idx").on(table.status),
+  }),
+);
+
+export const routeItems = pgTable(
+  "route_items",
+  {
+    id: uuid("id").primaryKey(),
+    routeId: uuid("route_id")
+      .notNull()
+      .references(() => routes.id),
+    workOrderId: uuid("work_order_id")
+      .notNull()
+      .references(() => workOrders.id),
+    orderIndex: integer("order_index").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    routeItemsRouteOrderUnique: unique("route_items_route_order_unique").on(
+      table.routeId,
+      table.orderIndex,
+    ),
+    routeItemsWorkOrderUnique: uniqueIndex("route_items_work_order_unique").on(table.workOrderId),
+  }),
+);
+
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    passwordResetUserCreatedAtIdx: index("password_reset_user_created_at_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
   }),
 );

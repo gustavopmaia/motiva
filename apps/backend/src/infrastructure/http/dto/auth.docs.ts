@@ -14,10 +14,19 @@ export class RegisterRequestDto {
   name!: string;
 
   @ApiProperty({
-    description: "Plain text password that will be hashed before storage.",
+    description:
+      "Plain text password that will be hashed before storage. Minimum 8 characters, at least one letter and one digit.",
     example: "change-me-123",
   })
   password!: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Role assigned to the new user. Only managers can set this field. Defaults to field.",
+    enum: ["manager", "field"],
+    example: "field",
+  })
+  role?: string;
 }
 
 export class LoginRequestDto {
@@ -73,12 +82,34 @@ export class UserProfileResponseDto {
     example: "2026-04-27T12:00:00.000Z",
   })
   createdAt!: string;
+}
+
+export class ForgotPasswordRequestDto {
+  @ApiProperty({
+    description: "Email address associated with the account.",
+    example: "manager@motiva.app",
+  })
+  email!: string;
+}
+
+export class ResetPasswordRequestDto {
+  @ApiProperty({
+    description: "Email address associated with the account.",
+    example: "manager@motiva.app",
+  })
+  email!: string;
 
   @ApiProperty({
-    description: "Date and time when the user was last updated.",
-    example: "2026-04-27T12:00:00.000Z",
+    description: "6-digit reset code sent to the email.",
+    example: "112233",
   })
-  updatedAt!: string;
+  code!: string;
+
+  @ApiProperty({
+    description: "New password. Minimum 8 characters, at least one letter and one digit.",
+    example: "new-password-1",
+  })
+  newPassword!: string;
 }
 
 export class CreateApiKeyRequestDto {
@@ -94,6 +125,14 @@ export class CreateApiKeyRequestDto {
     example: "iot",
   })
   source!: string;
+}
+
+export class RegisterResponseDto {
+  @ApiProperty({
+    description: "Unique identifier of the newly created user.",
+    example: "4f1a6e8f-6f8a-4d44-9c2a-9e75a6d574df",
+  })
+  id!: string;
 }
 
 export class CreateApiKeyResponseDto {

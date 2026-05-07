@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { connect, MqttClient } from "mqtt";
-import { CreateReadingUseCase } from "@application/use-cases/create-reading.use-case";
+import { ReadingsService } from "@application/services/readings.service";
 import { toIotReadingInput } from "@infrastructure/readings/reading-input.mapper";
 
 @Injectable()
@@ -11,7 +11,7 @@ export class ReadingsMqttHandler implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly config: ConfigService,
-    private readonly createReading: CreateReadingUseCase,
+    private readonly readingsService: ReadingsService,
   ) {}
 
   onModuleInit() {
@@ -37,7 +37,7 @@ export class ReadingsMqttHandler implements OnModuleInit, OnModuleDestroy {
 
         try {
           const body = JSON.parse(payload.toString()) as Record<string, unknown>;
-          await this.createReading.execute(toIotReadingInput(body, nodeId));
+          await this.readingsService.create(toIotReadingInput(body, nodeId));
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : "Invalid MQTT payload";
           this.logger.error(`Failed to ingest MQTT reading on ${topic}: ${message}`);

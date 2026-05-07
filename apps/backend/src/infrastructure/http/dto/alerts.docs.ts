@@ -34,12 +34,6 @@ export class AlertResponseDto {
   score!: number;
 
   @ApiProperty({
-    description: "Notification channels or delivery metadata associated with the alert.",
-    example: {},
-  })
-  channels!: Record<string, unknown>;
-
-  @ApiProperty({
     description: "Date and time when the alert was created.",
     example: "2026-04-27T12:00:00.000Z",
   })

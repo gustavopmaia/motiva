@@ -13,13 +13,15 @@ import {
   ApiCreatedResponse,
   ApiExtraModels,
   ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOperation,
   ApiSecurity,
   ApiTags,
   ApiUnauthorizedResponse,
   getSchemaPath,
 } from "@nestjs/swagger";
-import { CreateReadingUseCase } from "@application/use-cases/create-reading.use-case";
+import { ReadingsService } from "@application/services/readings.service";
+import { CreateReadingInput } from "@application/types/readings.types";
 import { ApiKeySource } from "@domain/entities/api-key.entity";
 import { toCreateReadingInput } from "@infrastructure/readings/reading-input.mapper";
 import {
@@ -40,7 +42,7 @@ type ApiKeyRequest = {
 @Controller("readings")
 @UseGuards(ApiKeyGuard)
 export class ReadingsController {
-  constructor(private readonly createReading: CreateReadingUseCase) {}
+  constructor(private readonly readingsService: ReadingsService) {}
 
   @Post()
   @ApiOperation({
@@ -63,27 +65,44 @@ export class ReadingsController {
     description: "Reading accepted, scored, and persisted.",
   })
   @ApiBadRequestResponse({
-    description: "The reading payload is invalid or no road segment can be matched.",
+    description: "The reading payload is invalid.",
   })
   @ApiForbiddenResponse({
     description: "The authenticated API key source does not match the reading source.",
   })
+  @ApiNotFoundResponse({ description: "No road segment can be matched to the reading location." })
   @ApiUnauthorizedResponse({ description: "The ingestion API key is missing or invalid." })
   async create(@Body() body: Record<string, unknown>, @Request() req: ApiKeyRequest) {
-    try {
-      if (!body || typeof body !== "object") throw new Error("Invalid payload");
-
-      const input = toCreateReadingInput(body);
-      if (req.apiKeySource !== input.source) {
-        throw new ForbiddenException("API key source does not match reading source");
-      }
-
-      return await this.createReading.execute(input);
-    } catch (error: unknown) {
-      if (error instanceof ForbiddenException) throw error;
-
-      const message = error instanceof Error ? error.message : "Invalid payload";
-      throw new BadRequestException(message);
+    if (!body || typeof body !== "object") {
+      throw new BadRequestException({
+        message: "Invalid reading payload.",
+        details: { fields: [{ field: "body", message: "body must be an object" }] },
+      });
     }
+
+    let input: CreateReadingInput;
+    try {
+      input = toCreateReadingInput(body);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Invalid payload";
+      const field = message.startsWith("Invalid ") ? message.slice("Invalid ".length) : "body";
+      throw new BadRequestException({
+        message: "Invalid reading payload.",
+        details: { fields: [{ field, message }] },
+      });
+    }
+
+    if (req.apiKeySource !== input.source) {
+      throw new ForbiddenException("API key source does not match reading source");
+    }
+
+    const r = await this.readingsService.create(input);
+    return {
+      id: r.id,
+      segmentId: r.segmentId,
+      source: r.source,
+      score: r.score,
+      createdAt: r.createdAt,
+    };
   }
 }

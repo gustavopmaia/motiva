@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim AS deps
+FROM node:24.14.0-bookworm-slim AS deps
 
 RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 
@@ -9,7 +9,7 @@ COPY package.json package-lock.json ./
 COPY apps/backend/package.json apps/backend/
 COPY apps/web/package.json apps/web/
 COPY packages/types/package.json packages/types/
-RUN npm pkg delete scripts.prepare && npm ci
+RUN npm pkg delete scripts.prepare && npm install
 
 COPY apps/backend/src apps/backend/src
 COPY apps/backend/tsconfig*.json apps/backend/
@@ -22,7 +22,7 @@ FROM deps AS builder
 RUN npm run build --workspace=backend && npm prune --omit=dev
 
 
-FROM node:20-bookworm-slim
+FROM node:24.14.0-bookworm-slim
 
 WORKDIR /app
 ENV NODE_ENV=production
