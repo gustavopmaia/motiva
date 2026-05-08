@@ -11,10 +11,10 @@
     "@react-native-async-storage/async-storage": "^2.1.2",
     "react": "18.3.1",
     "react-native": "0.76.9",
-    "react-native-background-actions": "^3.1.0",
+    "react-native-background-actions": "^4.1.0",
     "react-native-fs": "^2.20.0",
     "react-native-geolocation-service": "^5.3.1",
-    "react-native-keep-awake": "^4.0.3",
+    "react-native-keep-awake": "^4.0.0",
     "react-native-vision-camera": "^4.6.4"
   },
   "devDependencies": {
@@ -26,6 +26,7 @@
     "@react-native/typescript-config": "0.76.9",
     "@types/react": "^18.3.12",
     "@types/react-native-fs": "^2.13.0",
+    "@types/react-native-keep-awake": "^2.0.8",
     "typescript": "5.9.2"
   },
   "engines": {

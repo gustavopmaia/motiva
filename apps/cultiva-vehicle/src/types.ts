@@ -1,5 +1,5 @@
 export interface ReadingPayload {
-  source: 'vehicle';
+  source: "vehicle";
   imageBase64: string;
   lat: number;
   lon: number;
@@ -7,4 +7,4 @@ export interface ReadingPayload {
   vehicleId: string;
 }
 
-export type AppStatus = 'idle' | 'capturing' | 'offline' | 'syncing';
+export type AppStatus = "idle" | "capturing" | "offline" | "syncing";

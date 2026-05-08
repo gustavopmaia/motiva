@@ -1,7 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { ReadingPayload } from './types';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { ReadingPayload } from "./types";
 
-const QUEUE_KEY = 'cultiva_vehicle_queue';
+const QUEUE_KEY = "cultiva_vehicle_queue";
 const MAX_QUEUE_SIZE = 50;
 
 async function load(): Promise<ReadingPayload[]> {

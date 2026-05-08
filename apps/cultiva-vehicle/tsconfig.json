@@ -2,7 +2,8 @@
   "extends": "@react-native/typescript-config/tsconfig.json",
   "compilerOptions": {
     "rootDir": ".",
-    "paths": {}
+    "paths": {},
+    "types": ["react-native"]
   },
   "include": ["index.js", "App.tsx", "src/**/*"],
   "exclude": ["node_modules", "android", "scripts"]
