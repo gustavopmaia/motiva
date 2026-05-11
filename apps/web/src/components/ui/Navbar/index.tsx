@@ -30,7 +30,6 @@ export function Navbar({ currentTab, onTabChange }: INavbarProps) {
         </nav>
       </div>
       <div className={styles.right}>
-        <NavInput label="Buscar coordenadas" placeholder="Coordenada" />
         <Bell className={styles.icon} />
       </div>
     </header>

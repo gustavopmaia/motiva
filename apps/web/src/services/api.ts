@@ -5,12 +5,18 @@ const client = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-async function request<T>(path: string, method: string, body?: unknown): Promise<T> {
-  const response = await client.request<T>({ url: path, method, data: body });
+async function request<T>(
+  path: string,
+  method: string,
+  body?: unknown,
+  headers?: Record<string, string>,
+): Promise<T> {
+  const response = await client.request<T>({ url: path, method, data: body, headers });
   return response.data;
 }
 
-export const fetcher = <T>(path: string): Promise<T> => request<T>(path, "GET");
+export const fetcher = <T>(path: string, token?: string): Promise<T> =>
+  request<T>(path, "GET", undefined, token ? { Authorization: `Bearer ${token}` } : undefined);
 
 export const api = {
   post: <T>(path: string, body?: unknown) => request<T>(path, "POST", body),

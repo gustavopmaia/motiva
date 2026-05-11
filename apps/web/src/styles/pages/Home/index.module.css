@@ -1,0 +1,4 @@
+.wrapper {
+  padding: var(--spacing-8) var(--spacing-12);
+  max-width: 1256px;
+}
