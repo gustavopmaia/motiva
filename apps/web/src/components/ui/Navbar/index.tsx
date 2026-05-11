@@ -1,6 +1,5 @@
-import { Bell, Search } from "lucide-react";
+import { Bell } from "lucide-react";
 import styles from "./index.module.css";
-import type { InputHTMLAttributes } from "react";
 
 interface INavbarProps {
   currentTab: "map" | "gallery";
@@ -35,18 +34,3 @@ export function Navbar({ currentTab, onTabChange }: INavbarProps) {
     </header>
   );
 }
-
-type INavInputProps = InputHTMLAttributes<HTMLInputElement> & {
-  label: string;
-};
-
-const NavInput = ({ label, ...props }: INavInputProps) => {
-  return (
-    <div className={styles.inputWrapper}>
-      <span className={styles.prefixIcon}>
-        <Search size={14} />
-      </span>
-      <input id={"coordinate"} className={styles.input} {...props} />
-    </div>
-  );
-};
