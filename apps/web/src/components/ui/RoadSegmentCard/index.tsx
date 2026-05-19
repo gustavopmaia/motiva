@@ -17,7 +17,6 @@ export function RoadSegmentCard({
   kmEnd,
   mowingType,
   scoreCurrent,
-  scoreDivergent,
   image,
 }: RoadSegmentCardProps) {
   return (

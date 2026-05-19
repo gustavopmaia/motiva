@@ -1,3 +1,9 @@
+.wrapper {
+  padding: var(--spacing-8) var(--spacing-12);
+  max-width: 1256px;
+  margin: auto;
+}
+
 .container {
   display: flex;
   flex-direction: column;

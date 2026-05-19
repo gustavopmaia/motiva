@@ -45,34 +45,36 @@ export function GalleryPartial() {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Galeria</h1>
-        <SearchBar
-          value={search}
-          onChange={handleSearchChange}
-          placeholder="Buscar por rodovia ou tipo de corte..."
-        />
+    <div className={styles.wrapper}>
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Galeria</h1>
+          <SearchBar
+            value={search}
+            onChange={handleSearchChange}
+            placeholder="Buscar por rodovia ou tipo de corte..."
+          />
+        </div>
+
+        {isLoading && <p className={styles.message}>Carregando...</p>}
+        {error && <p className={styles.messageError}>Erro ao carregar dados.</p>}
+
+        {!isLoading && !error && (
+          <>
+            {filteredData.length === 0 ? (
+              <p className={styles.message}>Nenhum segmento encontrado.</p>
+            ) : (
+              <div className={styles.grid}>
+                {paginatedData.map((segment) => (
+                  <RoadSegmentCard key={segment.id} {...segment} />
+                ))}
+              </div>
+            )}
+
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+          </>
+        )}
       </div>
-
-      {isLoading && <p className={styles.message}>Carregando...</p>}
-      {error && <p className={styles.messageError}>Erro ao carregar dados.</p>}
-
-      {!isLoading && !error && (
-        <>
-          {filteredData.length === 0 ? (
-            <p className={styles.message}>Nenhum segmento encontrado.</p>
-          ) : (
-            <div className={styles.grid}>
-              {paginatedData.map((segment) => (
-                <RoadSegmentCard key={segment.id} {...segment} />
-              ))}
-            </div>
-          )}
-
-          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
-        </>
-      )}
     </div>
   );
 }

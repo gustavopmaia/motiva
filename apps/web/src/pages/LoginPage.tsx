@@ -65,6 +65,11 @@ export function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && email && password && !loading) {
+                handleLogin();
+              }
+            }}
           />
           {error && <div className={styles.error}>{error}</div>}
           <Button onClick={handleLogin} disabled={!email.trim() || !password.trim() || loading}>
