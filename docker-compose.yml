@@ -1,6 +1,6 @@
 services:
   backend:
-    image: "${BACKEND_IMAGE:?defina BACKEND_IMAGE antes de subir}"
+    image: ${BACKEND_IMAGE:-ghcr.io/gustavopmaia/motiva/backend:latest}
     build:
       context: .
       dockerfile: Dockerfile
@@ -50,7 +50,7 @@ services:
     restart: unless-stopped
 
   docs:
-    image: "${DOCS_IMAGE:?defina DOCS_IMAGE antes de subir}"
+    image: ${DOCS_IMAGE:-ghcr.io/gustavopmaia/motiva/docs:latest}
     build:
       context: .
       dockerfile: docs/Dockerfile
