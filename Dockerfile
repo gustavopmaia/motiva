@@ -9,7 +9,7 @@ COPY package.json package-lock.json ./
 COPY apps/backend/package.json apps/backend/
 COPY apps/web/package.json apps/web/
 COPY packages/types/package.json packages/types/
-RUN npm pkg delete scripts.prepare && npm install
+RUN npm pkg delete scripts.prepare && npm ci
 
 COPY apps/backend/src apps/backend/src
 COPY apps/backend/tsconfig*.json apps/backend/

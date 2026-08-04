@@ -1,10 +1,14 @@
-import Button from "@/components/ui/Button";
+import { AuthGuard } from "@/middleware/Middleware";
+import { GalleryPartial } from "@/partials/Gallery";
+import { MapPartial } from "@/partials/Map";
+import { useOutletContext } from "react-router-dom";
 
 export function HomePage() {
+  const { tab } = useOutletContext<{ tab: "map" | "gallery" }>();
+
   return (
-    <div>
-      <h1>Motiva - FIAP - Grupo 34</h1>
-      <Button>Entrar</Button>
-    </div>
+    <AuthGuard access="private">
+      {tab === "gallery" ? <GalleryPartial /> : <MapPartial />}
+    </AuthGuard>
   );
 }

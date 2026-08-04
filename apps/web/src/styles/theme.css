@@ -34,6 +34,7 @@
   --color-text-inverse: #ffffff;
 
   --color-border: #e2e8f0;
+  --color-border-dark: #334155;
   --color-border-light: #f1f5f9;
 
   /* Form */
@@ -59,6 +60,7 @@
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-xbold: 900;
 
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
