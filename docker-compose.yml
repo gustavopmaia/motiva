@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ${BACKEND_IMAGE:-motiva-backend:local}
+    image: "${BACKEND_IMAGE:?defina BACKEND_IMAGE antes de subir}"
     build:
       context: .
       dockerfile: Dockerfile
@@ -50,7 +50,7 @@ services:
     restart: unless-stopped
 
   docs:
-    image: ${DOCS_IMAGE:-motiva-docs:local}
+    image: "${DOCS_IMAGE:?defina DOCS_IMAGE antes de subir}"
     build:
       context: .
       dockerfile: docs/Dockerfile
