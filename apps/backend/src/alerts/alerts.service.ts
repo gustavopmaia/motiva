@@ -14,8 +14,8 @@ type AlertRow = {
   level: string;
   score: number;
   channels: unknown;
-  createdAt: Date;
-  closedAt: Date | null;
+  createdAt: Date | string;
+  closedAt: Date | string | null;
 };
 
 @Injectable()
@@ -42,8 +42,8 @@ export class AlertsService {
     if (existing) return existing;
 
     const rows = await this.drizzle.db.execute<AlertRow>(sql`
-      INSERT INTO alerts (id, segment_id, os_id, level, score, channels, created_at, closed_at)
-      VALUES (${randomUUID()}, ${segmentId}, NULL, ${level}, ${score}, ${JSON.stringify({})}::jsonb, ${new Date()}, NULL)
+      INSERT INTO alerts (id, segment_id, os_id, level, score, channels, closed_at)
+      VALUES (${randomUUID()}, ${segmentId}, NULL, ${level}, ${score}, ${JSON.stringify({})}::jsonb, NULL)
       ON CONFLICT (segment_id, level) WHERE closed_at IS NULL DO NOTHING
       RETURNING id, segment_id AS "segmentId", os_id AS "osId", level, score,
                 channels, created_at AS "createdAt", closed_at AS "closedAt"
@@ -84,7 +84,7 @@ function toAlert(row: AlertRow): Alert {
     level: row.level as AlertLevel,
     score: row.score,
     channels: (row.channels as Record<string, unknown>) ?? {},
-    createdAt: row.createdAt,
-    closedAt: row.closedAt,
+    createdAt: new Date(row.createdAt),
+    closedAt: row.closedAt === null ? null : new Date(row.closedAt),
   };
 }

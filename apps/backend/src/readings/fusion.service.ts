@@ -54,7 +54,7 @@ export class FusionService {
         score
       FROM readings
       WHERE segment_id = ${segmentId}
-        AND created_at >= ${new Date(Date.now() - 24 * 60 * 60 * 1000)}
+        AND created_at >= ${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}
       ORDER BY source, created_at DESC
     `);
 

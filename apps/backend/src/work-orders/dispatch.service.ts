@@ -16,8 +16,12 @@ export type DispatchWorkOrder = {
   kmEnd: number;
 };
 
-type DispatchWorkOrderRow = Omit<DispatchWorkOrder, "kmStart" | "kmEnd" | "priority"> & {
+type DispatchWorkOrderRow = Omit<
+  DispatchWorkOrder,
+  "kmStart" | "kmEnd" | "priority" | "createdAt"
+> & {
   priority: string;
+  createdAt: string;
   kmStart: string;
   kmEnd: string;
 };
@@ -190,6 +194,7 @@ export class DispatchService {
     return rows.map((row) => ({
       ...row,
       priority: row.priority as WorkOrderPriority,
+      createdAt: new Date(row.createdAt),
       kmStart: Number(row.kmStart),
       kmEnd: Number(row.kmEnd),
     }));

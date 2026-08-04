@@ -17,6 +17,7 @@ async function bootstrap() {
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
   app.useGlobalFilters(new GlobalExceptionFilter(config.get<string>("NODE_ENV") !== "production"));
   app.useGlobalPipes(createValidationPipe());
+  app.enableShutdownHooks();
   setupDocs(app);
 
   const port = config.get<number>("PORT") ?? 3000;

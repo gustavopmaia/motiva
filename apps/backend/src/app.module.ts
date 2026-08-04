@@ -9,6 +9,8 @@ import { WorkOrdersModule } from "./work-orders/work-orders.module";
 import { RoadSegmentsModule } from "./road-segments/road-segments.module";
 import { HealthController } from "./health/health.controller";
 import { validateEnv } from "./common/env";
+import { DatabaseModule } from "./database/database.module";
+import { SEGMENT_EVENTS_QUEUE } from "./common/queues";
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { validateEnv } from "./common/env";
       inject: [ConfigService],
     }),
     ScheduleModule.forRoot(),
+    DatabaseModule,
+    BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE }),
     AuthModule,
     ReadingsModule,
     AlertsModule,

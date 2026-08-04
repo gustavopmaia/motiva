@@ -10,7 +10,8 @@
     "check-types": "tsc --noEmit",
     "test": "jest",
     "migrate": "node dist/src/migrate.js",
-    "generate": "npm exec -- drizzle-kit generate"
+    "generate": "npm exec -- drizzle-kit generate",
+    "test:integration": "jest --testMatch '**/*.int-spec.ts' --runInBand"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.4",
