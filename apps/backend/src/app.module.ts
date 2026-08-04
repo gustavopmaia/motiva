@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { BullModule } from "@nestjs/bullmq";
 import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { AuthModule } from "./auth/auth.module";
 import { ReadingsModule } from "./readings/readings.module";
 import { AlertsModule } from "./alerts/alerts.module";
@@ -26,6 +27,7 @@ import { SEGMENT_EVENTS_QUEUE } from "./common/queues";
       inject: [ConfigService],
     }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 5 }]),
     DatabaseModule,
     BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE }),
     AuthModule,

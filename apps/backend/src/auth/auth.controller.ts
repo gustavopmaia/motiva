@@ -19,9 +19,11 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { JwtService } from "@nestjs/jwt";
+import { ThrottlerGuard } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
 import { UserRole } from "./user.entity";
 import { JwtAuthGuard } from "./guards/jwt.guard";
@@ -75,7 +77,10 @@ export class AuthController {
       body.role === "manager" ? "manager" : "field",
     );
   }
+
   @Post("login")
+  @UseGuards(ThrottlerGuard)
+  @ApiTooManyRequestsResponse({ description: "Too many login attempts from this address." })
   @ApiOperation({
     summary: "Log in",
     description:
