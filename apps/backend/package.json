@@ -6,7 +6,8 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/src/main.js",
-    "lint": "eslint \"{src,test}/**/*.ts\"",
+    "lint": "eslint src",
+    "check-types": "tsc --noEmit",
     "test": "jest",
     "migrate": "node dist/src/migrate.js",
     "generate": "npm exec -- drizzle-kit generate"
@@ -22,6 +23,8 @@
     "@nestjs/swagger": "^11.4.2",
     "argon2": "^0.41.1",
     "bullmq": "^5.76.4",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "drizzle-orm": "^0.45.2",
     "mqtt": "^5.15.1",
     "postgres": "^3.4.9",
@@ -29,6 +32,7 @@
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.16.0",
     "@nestjs/cli": "^11.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.11.0",
@@ -36,6 +40,7 @@
     "eslint": "^9.16.0",
     "jest": "^30.3.0",
     "ts-jest": "^29.4.9",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.0.0"
   }
 }
