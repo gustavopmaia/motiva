@@ -18,6 +18,28 @@ npm run migrate --workspace=backend
 npm run dev
 ```
 
+No `.env` local, use `NODE_ENV=development` — o valor de `production` do exemplo é o de deploy.
+
+### Dados de demonstração
+
+Popula o banco com equipes, leituras das três fontes, alertas, OSs e as rotas que o
+despacho monta a partir delas. Trabalha em cima dos trechos já importados — pega a
+rodovia com mais trechos e usa os que existem, então a demo roda sobre a geometria real.
+Só cria uma rodovia de exemplo se o banco não tiver trecho nenhum.
+Idempotente: rodar de novo não duplica nada.
+
+```bash
+npm run build --workspace=backend   # o seed roda a partir de dist/
+npm run seed --workspace=backend
+```
+
+Cria só o usuário de campo `campo@motiva.com`, senha `motiva123` (ou `SEED_PASSWORD`) —
+para entrar como gestor use a conta de manager que já existe no ambiente.
+
+Cada registro é resolvido pela chave natural (nome da equipe, faixa de km do trecho,
+e-mail do usuário), então rodar sobre um banco que já tem dados reúsa o que existe em vez
+de duplicar. Com `NODE_ENV=production` exige `SEED_FORCE=1` e `SEED_PASSWORD`.
+
 ## Apps
 
 - `apps/backend` — API REST (NestJS + Drizzle + BullMQ + MQTT)

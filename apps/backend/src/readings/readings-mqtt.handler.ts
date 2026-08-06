@@ -4,6 +4,8 @@ import { connect, MqttClient } from "mqtt";
 import { ReadingsService } from "./readings.service";
 import { toIotReadingInput } from "./reading-input.mapper";
 
+const SHARED_TOPIC = "$share/motiva/sensors/+/reading";
+
 @Injectable()
 export class ReadingsMqttHandler implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ReadingsMqttHandler.name);
@@ -19,14 +21,15 @@ export class ReadingsMqttHandler implements OnModuleInit, OnModuleDestroy {
     if (!url) return;
 
     this.client = connect(url, {
+      protocolVersion: 5,
       username: this.config.get<string>("MQTT_USERNAME"),
       password: this.config.get<string>("MQTT_PASSWORD"),
     });
 
     this.client.on("connect", () => {
-      this.client?.subscribe("sensors/+/reading", (error) => {
+      this.client?.subscribe(SHARED_TOPIC, (error) => {
         if (error) {
-          this.logger.error(`Failed to subscribe to sensors/+/reading: ${error.message}`);
+          this.logger.error(`Failed to subscribe to ${SHARED_TOPIC}: ${error.message}`);
         }
       });
     });

@@ -1,34 +1,46 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
 import { Cron } from "@nestjs/schedule";
+import { Queue } from "bullmq";
 import { DispatchService } from "./dispatch.service";
+import { SEGMENT_EVENTS_QUEUE } from "../common/queues";
+
+const REPLAN_FLAG = "dispatch:needs-replan";
+const REPLAN_LOCK = "dispatch:lock";
+const LOCK_TTL_SECONDS = 300;
 
 @Injectable()
 export class DispatchCronService {
   private readonly logger = new Logger(DispatchCronService.name);
-  private needsReplan = false;
-  private isRunning = false;
 
-  constructor(private readonly dispatchService: DispatchService) {}
+  constructor(
+    private readonly dispatchService: DispatchService,
+    @InjectQueue(SEGMENT_EVENTS_QUEUE)
+    private readonly queue: Queue,
+  ) {}
 
-  markNeedsReplan(): void {
-    this.needsReplan = true;
+  async markNeedsReplan(): Promise<void> {
+    const redis = await this.queue.client;
+    await redis.set(REPLAN_FLAG, "1");
   }
 
   @Cron("*/5 * * * *")
   async handleDispatchCron(): Promise<void> {
-    if (!this.needsReplan || this.isRunning) return;
+    const redis = await this.queue.client;
 
-    this.isRunning = true;
+    const locked = await redis.set(REPLAN_LOCK, "1", "EX", LOCK_TTL_SECONDS, "NX");
+    if (!locked) return;
+
     try {
-      this.logger.log({
-        action: "dispatch.cron",
-        triggered: true,
-      });
+      if (!(await redis.getdel(REPLAN_FLAG))) return;
 
+      this.logger.log({ action: "dispatch.cron", triggered: true });
       await this.dispatchService.runDispatch();
-      this.needsReplan = false;
+    } catch (error: unknown) {
+      await redis.set(REPLAN_FLAG, "1");
+      throw error;
     } finally {
-      this.isRunning = false;
+      await redis.del(REPLAN_LOCK);
     }
   }
 }

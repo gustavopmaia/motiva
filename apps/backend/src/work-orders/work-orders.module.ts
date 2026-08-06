@@ -9,7 +9,7 @@ import { WorkOrdersController } from "./work-orders.controller";
 import { DatabaseModule } from "../database/database.module";
 import { AuthModule } from "../auth/auth.module";
 import { TeamsModule } from "../teams/teams.module";
-import { ALERT_EVENTS_QUEUE } from "../common/queues";
+import { ALERT_EVENTS_QUEUE, SEGMENT_EVENTS_QUEUE } from "../common/queues";
 
 @Module({
   imports: [
@@ -18,6 +18,7 @@ import { ALERT_EVENTS_QUEUE } from "../common/queues";
     TeamsModule,
     AlertsModule,
     BullModule.registerQueue({ name: ALERT_EVENTS_QUEUE }),
+    BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE }),
   ],
   providers: [WorkOrdersProcessor, DispatchCronService, DispatchService, WorkOrdersService],
   controllers: [WorkOrdersController],

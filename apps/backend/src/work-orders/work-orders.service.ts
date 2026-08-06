@@ -71,7 +71,7 @@ export class WorkOrdersService {
       .returning();
 
     if (saved) {
-      this.dispatchCronService.markNeedsReplan();
+      await this.dispatchCronService.markNeedsReplan();
       return toWorkOrder(saved);
     }
 
@@ -111,7 +111,7 @@ export class WorkOrdersService {
     const statusChanged = newStatus !== existing.status;
     const teamChanged = input.team !== undefined && newTeam !== existing.team;
     if (statusChanged || teamChanged) {
-      this.dispatchCronService.markNeedsReplan();
+      await this.dispatchCronService.markNeedsReplan();
     }
 
     return toWorkOrder(updated);
