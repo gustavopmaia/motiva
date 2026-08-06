@@ -85,6 +85,11 @@ jobs:
     name: Deploy
     needs: publish
     runs-on: ubuntu-latest
+    # Sem isto o job herda a permissão padrão do repositório; se ela for só de
+    # leitura de conteúdo, o docker login no GHCR falha com "denied".
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
