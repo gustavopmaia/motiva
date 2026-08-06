@@ -351,6 +351,49 @@ Operação atômica — em uma única transação de banco:
 
 ---
 
+### Rotas
+
+O cron de despacho monta as rotas sozinho a cada 5 minutos. Estes endpoints leem e ajustam o que ele montou.
+
+**Listar**
+
+```
+GET /api/v1/routes
+Authorization: Bearer <token>
+```
+
+Filtros opcionais: `status` (`pending_approval`, `locked`) e `date` (`YYYY-MM-DD`).
+
+Gestor vê todas as rotas; usuário de campo vê só as da própria equipe. Cada rota traz os itens já na ordem de visita, com o trecho (`roadName`, `kmStart`, `kmEnd`, `scoreCurrent`) e a OS (`workOrderStatus`, `priority`, `observation`).
+
+**Travar ou liberar**
+
+```
+PATCH /api/v1/routes/:id
+Authorization: Bearer <token-manager>
+```
+
+```json
+{ "status": "locked" }
+```
+
+Rota `locked` nunca é replanejada pelo cron — é isso que faz a edição manual sobreviver. Voltar para `pending_approval` devolve a rota ao planejamento automático, e ela será refeita na próxima execução.
+
+**Reordenar as OSs**
+
+```
+PATCH /api/v1/routes/:id/items
+Authorization: Bearer <token-manager>
+```
+
+```json
+{ "workOrderIds": ["uuid-da-segunda-parada", "uuid-da-primeira-parada"] }
+```
+
+A lista precisa conter exatamente as OSs que já estão na rota — qualquer outra coisa retorna `400`. A rota é travada automaticamente, senão o próximo replan descartaria a ordem manual.
+
+---
+
 ## Módulos NestJS
 
 ```
@@ -359,7 +402,8 @@ AppModule
   ├── ReadingsModule      (ingestão HTTP e MQTT, FusionService)
   ├── AlertsModule        (alertas, AlertsProcessor)
   ├── WorkOrdersModule    (OSs, despacho, WorkOrdersProcessor, DispatchCronService)
-  └── RoadSegmentsModule  (listagem de segmentos)
+  ├── RoadSegmentsModule  (listagem de segmentos)
+  └── RoutesModule        (leitura, trava e reordenação das rotas)
 ```
 
 ## Filas BullMQ
