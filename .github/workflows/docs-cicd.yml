@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - "docs/**"
-      - ".github/workflows/docs-cd.yml"
+      - ".github/workflows/docs-cicd.yml"
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}/docs
@@ -54,6 +54,7 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
         with:
           host: ${{ secrets.EC2_HOST }}
+          port: ${{ secrets.EC2_SSH_PORT }}
           username: ${{ vars.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: IMAGE,GHCR_TOKEN,GITHUB_ACTOR
