@@ -30,8 +30,12 @@ npm run build --workspace=backend   # o seed roda a partir de dist/
 npm run seed --workspace=backend
 ```
 
-Cria `gestor@motiva.com` (manager) e `campo@motiva.com` (field), senha `motiva123`
-(ou `SEED_PASSWORD`). Recusa rodar com `NODE_ENV=production` a menos que `SEED_FORCE=1`.
+Cria só o usuário de campo `campo@motiva.com`, senha `motiva123` (ou `SEED_PASSWORD`) —
+para entrar como gestor use a conta de manager que já existe no ambiente.
+
+Cada registro é resolvido pela chave natural (nome da equipe, faixa de km do trecho,
+e-mail do usuário), então rodar sobre um banco que já tem dados reúsa o que existe em vez
+de duplicar. Com `NODE_ENV=production` exige `SEED_FORCE=1` e `SEED_PASSWORD`.
 
 ## Apps
 
