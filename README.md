@@ -22,8 +22,11 @@ No `.env` local, use `NODE_ENV=development` — o valor de `production` do exemp
 
 ### Dados de demonstração
 
-Popula o banco com trechos da BR-101, leituras das três fontes, alertas, OSs e as
-rotas que o despacho monta a partir delas. Idempotente: rodar de novo não duplica nada.
+Popula o banco com equipes, leituras das três fontes, alertas, OSs e as rotas que o
+despacho monta a partir delas. Trabalha em cima dos trechos já importados — pega a
+rodovia com mais trechos e usa os que existem, então a demo roda sobre a geometria real.
+Só cria uma rodovia de exemplo se o banco não tiver trecho nenhum.
+Idempotente: rodar de novo não duplica nada.
 
 ```bash
 npm run build --workspace=backend   # o seed roda a partir de dist/
