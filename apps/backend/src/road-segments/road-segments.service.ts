@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { sql } from "drizzle-orm";
-import { RoadSegment } from "./road-segment.entity";
+import { RoadSegment, SegmentGeometry } from "./road-segment.entity";
 import { Territory, territoryOverlap } from "../common/territory";
 import { DrizzleService } from "../database/drizzle.service";
 
@@ -12,6 +12,7 @@ type RoadSegmentRow = {
   mowingType: string | null;
   scoreCurrent: number | null;
   scoreDivergent: boolean;
+  geometry: SegmentGeometry;
 };
 
 @Injectable()
@@ -24,7 +25,8 @@ export class RoadSegmentsService {
     const rows = await this.drizzle.db.execute<RoadSegmentRow>(sql`
       SELECT id, road_name AS "roadName", km_start AS "kmStart", km_end AS "kmEnd",
              mowing_type AS "mowingType", score_current AS "scoreCurrent",
-             score_divergent AS "scoreDivergent"
+             score_divergent AS "scoreDivergent",
+             ST_AsGeoJSON(geometry)::json AS geometry
       FROM road_segments
       ${where}
       ORDER BY road_name, km_start
@@ -43,5 +45,6 @@ function toSegment(row: RoadSegmentRow): RoadSegment {
     mowingType: row.mowingType,
     scoreCurrent: row.scoreCurrent,
     scoreDivergent: row.scoreDivergent,
+    geometry: row.geometry,
   };
 }

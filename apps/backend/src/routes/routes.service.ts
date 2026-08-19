@@ -29,6 +29,8 @@ type RouteRow = {
   kmStart: string | null;
   kmEnd: string | null;
   scoreCurrent: number | null;
+  lat: number | null;
+  lon: number | null;
 };
 
 @Injectable()
@@ -109,7 +111,8 @@ export class RoutesService {
         ri.work_order_id AS "workOrderId", ri.order_index AS "orderIndex",
         wo.status AS "workOrderStatus", wo.priority, wo.observation,
         rs.id AS "segmentId", rs.road_name AS "roadName",
-        rs.km_start AS "kmStart", rs.km_end AS "kmEnd", rs.score_current AS "scoreCurrent"
+        rs.km_start AS "kmStart", rs.km_end AS "kmEnd", rs.score_current AS "scoreCurrent",
+        ST_Y(ST_StartPoint(rs.geometry)) AS lat, ST_X(ST_StartPoint(rs.geometry)) AS lon
       FROM routes r
       INNER JOIN teams t ON t.id = r.team_id
       LEFT JOIN route_items ri ON ri.route_id = r.id
@@ -155,6 +158,8 @@ function toItem(row: RouteRow): RouteItem {
     kmStart: Number(row.kmStart),
     kmEnd: Number(row.kmEnd),
     scoreCurrent: row.scoreCurrent,
+    lat: row.lat,
+    lon: row.lon,
   };
 }
 

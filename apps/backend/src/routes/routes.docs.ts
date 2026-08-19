@@ -81,6 +81,20 @@ export class RouteItemResponseDto {
 
   @ApiProperty({ description: "Latest fused vegetation score.", nullable: true, example: 72.4 })
   scoreCurrent!: number | null;
+
+  @ApiProperty({
+    description: "Latitude of the segment start, to place the stop on the map.",
+    nullable: true,
+    example: -23.4162,
+  })
+  lat!: number | null;
+
+  @ApiProperty({
+    description: "Longitude of the segment start, to place the stop on the map.",
+    nullable: true,
+    example: -46.7841,
+  })
+  lon!: number | null;
 }
 
 export class RouteResponseDto {

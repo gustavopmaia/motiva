@@ -15,6 +15,9 @@ export type RouteItem = {
   kmStart: number;
   kmEnd: number;
   scoreCurrent: number | null;
+  /** Início do trecho, para posicionar a parada no mapa. */
+  lat: number | null;
+  lon: number | null;
 };
 
 export type Route = {
