@@ -41,7 +41,14 @@ describeDb("routes against a real database", () => {
     routes = new RoutesService(drizzle);
     dispatch = new DispatchService(drizzle);
 
-    await insertSegment(drizzle, { id: SEGMENT_A, roadName: "BR-101", kmStart: 10, kmEnd: 11 });
+    await insertSegment(drizzle, {
+      id: SEGMENT_A,
+      roadName: "BR-101",
+      kmStart: 10,
+      kmEnd: 11,
+      lat: -23.4162,
+      lon: -46.7841,
+    });
     await insertSegment(drizzle, { id: SEGMENT_B, roadName: "BR-101", kmStart: 12, kmEnd: 13 });
     await insertTeam(drizzle, {
       id: TEAM_NORTE,
@@ -67,6 +74,14 @@ describeDb("routes against a real database", () => {
     expect(route.items.map((item) => item.orderIndex)).toEqual([0, 1]);
     expect(route.items.map((item) => item.kmStart)).toEqual([10, 12]);
     expect(route.items[0].roadName).toBe("BR-101");
+  });
+
+  it("devolve a coordenada real do trecho em cada parada", async () => {
+    const [route] = await routes.findAll({});
+
+    // Valores distintos entre si: uma troca de lat com lon quebra o teste.
+    expect(route.items[0].lat).toBeCloseTo(-23.4162, 4);
+    expect(route.items[0].lon).toBeCloseTo(-46.7841, 4);
   });
 
   it("filtra rotas por equipe", async () => {
