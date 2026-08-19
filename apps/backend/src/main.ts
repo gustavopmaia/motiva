@@ -2,6 +2,7 @@ import { Logger, VersioningType } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
+import { parseCorsOrigins } from "./common/env";
 import { setupDocs } from "./common/docs";
 import { GlobalExceptionFilter } from "./common/global-exception.filter";
 import { createValidationPipe } from "./common/validation.pipe";
@@ -10,8 +11,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
-  const frontendUrl = config.get<string>("FRONTEND_URL");
-  app.enableCors(frontendUrl ? { origin: frontendUrl } : {});
+  const corsOrigins = parseCorsOrigins(config.get<string>("FRONTEND_URL"));
+  app.enableCors(corsOrigins ? { origin: corsOrigins } : {});
 
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });

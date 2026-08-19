@@ -1,4 +1,4 @@
-import { validateEnv } from "./env";
+import { parseCorsOrigins, validateEnv } from "./env";
 
 const valid = {
   DATABASE_URL: "postgresql://user:pass@localhost:5432/motiva",
@@ -37,5 +37,26 @@ describe("validateEnv", () => {
   it("rejeita PORT inválida", () => {
     expect(() => validateEnv({ ...valid, PORT: "abc" })).toThrow("PORT must be an integer");
     expect(() => validateEnv({ ...valid, PORT: "70000" })).toThrow("PORT must be an integer");
+  });
+});
+
+describe("parseCorsOrigins", () => {
+  it("aceita uma única origem", () => {
+    expect(parseCorsOrigins("https://motiva.nyxdev.com.br")).toEqual([
+      "https://motiva.nyxdev.com.br",
+    ]);
+  });
+
+  it("aceita várias origens separadas por vírgula e ignora espaços", () => {
+    expect(parseCorsOrigins("https://motiva.nyxdev.com.br, http://localhost:5173")).toEqual([
+      "https://motiva.nyxdev.com.br",
+      "http://localhost:5173",
+    ]);
+  });
+
+  it("devolve undefined quando não há origem configurada", () => {
+    expect(parseCorsOrigins(undefined)).toBeUndefined();
+    expect(parseCorsOrigins("")).toBeUndefined();
+    expect(parseCorsOrigins("  ,  ")).toBeUndefined();
   });
 });
