@@ -35,4 +35,17 @@ export class RoadSegmentResponseDto {
     example: false,
   })
   scoreDivergent!: boolean;
+
+  @ApiProperty({
+    description:
+      "GeoJSON LineString with the segment path, in [longitude, latitude] order as the GeoJSON spec requires.",
+    example: {
+      type: "LineString",
+      coordinates: [
+        [-46.7841, -23.4162],
+        [-46.7835, -23.4171],
+      ],
+    },
+  })
+  geometry!: { type: "LineString"; coordinates: [number, number][] };
 }

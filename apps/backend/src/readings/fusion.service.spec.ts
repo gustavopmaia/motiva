@@ -11,6 +11,13 @@ const seg = (score: number | null = null): RoadSegment => ({
   mowingType: null,
   scoreCurrent: score,
   scoreDivergent: false,
+  geometry: {
+    type: "LineString",
+    coordinates: [
+      [-46.78, -23.41],
+      [-46.78, -23.42],
+    ],
+  },
 });
 
 const reading = (source: "iot" | "vehicle" | "satellite", score: number): Reading => ({
