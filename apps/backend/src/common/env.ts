@@ -24,3 +24,17 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
 
   return { ...config, NODE_ENV: nodeEnv, PORT: port };
 }
+
+/**
+ * FRONTEND_URL aceita uma lista separada por vírgula para que o front em produção e o
+ * ambiente de desenvolvimento de quem está na equipe possam falar com a mesma API.
+ * Sem nenhuma origem configurada o CORS fica liberado, que é o padrão do Nest.
+ */
+export function parseCorsOrigins(frontendUrl: string | undefined): string[] | undefined {
+  const origins = (frontendUrl ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+  return origins.length > 0 ? origins : undefined;
+}
