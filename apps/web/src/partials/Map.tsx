@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Tooltip } from "react-leaflet";
 import L from "leaflet";
 import useSWRImmutable from "swr/immutable";
@@ -40,6 +41,19 @@ interface WorkOrder {
   createdAt: string;
   startedAt?: string | null;
   completedAt?: string | null;
+}
+
+interface RouteItem {
+  workOrderId: string;
+  segmentId: string;
+}
+
+interface Route {
+  id: string;
+  teamId: string;
+  teamName: string;
+  date: string;
+  items: RouteItem[];
 }
 
 interface ProcessedPoint {
@@ -114,8 +128,14 @@ function getSegmentCoordinates(index: number, total: number): [number, number] {
 
 export function MapPartial() {
   const { token } = useAuth();
+  const location = useLocation();
   const [selectedPoint, setSelectedPoint] = useState<MapPointDetail | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const workOrdersOnly = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get("filter") === "work_orders";
+  }, [location.search]);
 
   const { data: segments } = useSWRImmutable<RoadSegment[]>(
     token ? ["/v1/road-segments", token] : null,
@@ -130,6 +150,11 @@ export function MapPartial() {
   const { data: workOrders } = useSWRImmutable<WorkOrder[]>(
     token ? ["/v1/work-orders", token] : null,
     ([url, t]) => fetcher<WorkOrder[]>(url, t as string),
+  );
+
+  const { data: routes } = useSWRImmutable<Route[]>(
+    token && workOrdersOnly ? ["/v1/routes", token] : null,
+    ([url, t]) => fetcher<Route[]>(url, t as string),
   );
 
   const points = useMemo(() => {
@@ -261,6 +286,28 @@ export function MapPartial() {
     return list;
   }, [segments, alerts, workOrders]);
 
+  const displayPoints = useMemo(() => {
+    if (workOrdersOnly) {
+      const teamWoIds = new Set<string>();
+      if (routes && Array.isArray(routes)) {
+        routes.forEach((r) => {
+          r.items?.forEach((item) => {
+            if (item.workOrderId) teamWoIds.add(item.workOrderId);
+          });
+        });
+      }
+
+      return points.filter((p) => {
+        if (p.level !== "work_order" && p.detail.type !== "work_order") return false;
+        if (teamWoIds.size > 0) {
+          return teamWoIds.has(p.detail.id);
+        }
+        return true;
+      });
+    }
+    return points;
+  }, [points, workOrdersOnly, routes]);
+
   const handleMarkerClick = (detail: MapPointDetail) => {
     setSelectedPoint(detail);
     setIsModalOpen(true);
@@ -272,15 +319,37 @@ export function MapPartial() {
   };
 
   return (
-    <>
+    <div style={{ position: "relative", width: "100%", height: "calc(100vh - 64px)" }}>
+      {workOrdersOnly && (
+        <div
+          style={{
+            position: "absolute",
+            top: "16px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1000,
+            backgroundColor: "var(--color-primary)",
+            color: "#ffffff",
+            padding: "8px 20px",
+            borderRadius: "24px",
+            fontSize: "13px",
+            fontWeight: 600,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+            pointerEvents: "none",
+          }}
+        >
+          Exibindo apenas ordens de serviço da sua equipe
+        </div>
+      )}
+
       <MapContainer
         center={[-23.55052, -46.633308]}
         zoom={13}
         minZoom={10}
-        style={{ height: "calc(100vh - 64px)", width: "100%" }}
+        style={{ height: "100%", width: "100%" }}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        {points.map((point) => (
+        {displayPoints.map((point) => (
           <Marker
             key={point.id}
             position={point.position}
@@ -302,6 +371,6 @@ export function MapPartial() {
       </MapContainer>
 
       <DetailModal isOpen={isModalOpen} onClose={handleCloseModal} point={selectedPoint} />
-    </>
+    </div>
   );
 }
