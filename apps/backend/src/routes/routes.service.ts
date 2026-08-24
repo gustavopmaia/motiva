@@ -60,21 +60,19 @@ export class RoutesService {
     return { ...existing, status };
   }
 
-  /**
-   * Reorders the work orders of a route. The route is locked so the dispatch cron
-   * stops replanning it — an unlocked route is dropped and rebuilt on the next run,
-   * which would silently discard the manual ordering.
-   */
-  async reorder(id: string, workOrderIds: string[]): Promise<Route> {
+  async setItems(id: string, workOrderIds: string[]): Promise<Route> {
     const existing = await this.findById(id);
     if (!existing) throw new NotFoundError("Route not found");
 
-    const current = existing.items.map((item) => item.workOrderId);
-    if (!sameSet(current, workOrderIds)) {
-      throw new InvalidOperationError(
-        "workOrderIds must contain exactly the work orders currently in the route",
-      );
+    if (new Set(workOrderIds).size !== workOrderIds.length) {
+      throw new InvalidOperationError("workOrderIds must not contain duplicates");
     }
+
+    await this.assertAssignable(id, workOrderIds);
+
+    const removed = existing.items
+      .map((item) => item.workOrderId)
+      .filter((workOrderId) => !workOrderIds.includes(workOrderId));
 
     await this.drizzle.db.transaction(async (tx) => {
       await tx.execute(sql`DELETE FROM route_items WHERE route_id = ${id}`);
@@ -86,19 +84,55 @@ export class RoutesService {
         `);
       }
 
+      if (workOrderIds.length) {
+        await tx.execute(sql`
+          UPDATE work_orders SET team = ${existing.teamName}
+          WHERE id IN (${idList(workOrderIds)})
+        `);
+      }
+
+      if (removed.length) {
+        await tx.execute(sql`
+          UPDATE work_orders SET team = NULL WHERE id IN (${idList(removed)})
+        `);
+      }
+
       await tx.execute(sql`UPDATE routes SET status = 'locked' WHERE id = ${id}`);
     });
 
-    const byWorkOrder = new Map(existing.items.map((item) => [item.workOrderId, item]));
+    return (await this.findById(id)) as Route;
+  }
 
-    return {
-      ...existing,
-      status: "locked",
-      items: workOrderIds.map((workOrderId, orderIndex) => ({
-        ...(byWorkOrder.get(workOrderId) as RouteItem),
-        orderIndex,
-      })),
-    };
+  private async assertAssignable(routeId: string, workOrderIds: string[]): Promise<void> {
+    if (!workOrderIds.length) return;
+
+    const rows = await this.drizzle.db.execute<{
+      id: string;
+      status: string;
+      routeId: string | null;
+    }>(sql`
+      SELECT wo.id, wo.status, ri.route_id AS "routeId"
+      FROM work_orders wo
+      LEFT JOIN route_items ri ON ri.work_order_id = wo.id
+      WHERE wo.id IN (${idList(workOrderIds)})
+    `);
+
+    const found = new Map(rows.map((row) => [row.id, row]));
+
+    for (const workOrderId of workOrderIds) {
+      const row = found.get(workOrderId);
+      if (!row) throw new NotFoundError(`Work order ${workOrderId} not found`);
+
+      if (row.status === "completed") {
+        throw new InvalidOperationError(`Work order ${workOrderId} is already completed`);
+      }
+
+      if (row.routeId && row.routeId !== routeId) {
+        throw new InvalidOperationError(
+          `Work order ${workOrderId} already belongs to another route`,
+        );
+      }
+    }
   }
 
   private async query(conditions: SQL[]): Promise<Route[]> {
@@ -163,11 +197,9 @@ function toItem(row: RouteRow): RouteItem {
   };
 }
 
-function sameSet(current: string[], incoming: string[]): boolean {
-  if (current.length !== incoming.length) return false;
-
-  const unique = new Set(incoming);
-  if (unique.size !== incoming.length) return false;
-
-  return current.every((id) => unique.has(id));
+function idList(ids: string[]): SQL {
+  return sql.join(
+    ids.map((id) => sql`${id}`),
+    sql`, `,
+  );
 }

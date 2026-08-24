@@ -18,7 +18,7 @@ import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { JwtPayload } from "../auth/jwt-payload";
 import {
-  ReorderRouteItemsRequestDto,
+  SetRouteItemsRequestDto,
   RouteFiltersDto,
   RouteResponseDto,
   UpdateRouteRequestDto,
@@ -79,22 +79,25 @@ export class RoutesController {
   @UseGuards(RolesGuard)
   @Roles("manager")
   @ApiOperation({
-    summary: "Reorder the work orders of a route",
+    summary: "Set the work orders of a route",
     description:
-      "Replaces the visit order of the route. The payload must contain exactly the work orders currently in the route. The route is locked so the dispatch job stops replanning it.",
+      "Replaces the work orders of the route, in visit order. Work orders can be added, removed or reordered. The route is locked so the dispatch job stops replanning it.",
   })
   @ApiParam({ name: "id", description: "Unique route identifier." })
-  @ApiBody({ type: ReorderRouteItemsRequestDto, description: "Work order ids in visit order." })
-  @ApiOkResponse({ type: RouteResponseDto, description: "Route reordered and locked." })
+  @ApiBody({ type: SetRouteItemsRequestDto, description: "Work order ids in visit order." })
+  @ApiOkResponse({ type: RouteResponseDto, description: "Route items replaced and route locked." })
   @ApiBadRequestResponse({
-    description: "The payload is invalid or does not match the work orders in the route.",
+    description:
+      "The payload is invalid, repeats a work order, or references one that is completed or already routed elsewhere.",
   })
   @ApiUnauthorizedResponse({
     description: "The JWT access token is missing, invalid, expired, or cannot be verified.",
   })
   @ApiForbiddenResponse({ description: "The authenticated user does not have the manager role." })
-  @ApiNotFoundResponse({ description: "No route exists for the provided identifier." })
-  async reorder(@Param("id") id: string, @Body() body: ReorderRouteItemsRequestDto) {
-    return this.routesService.reorder(id, body.workOrderIds);
+  @ApiNotFoundResponse({
+    description: "No route or work order exists for the provided identifier.",
+  })
+  async setItems(@Param("id") id: string, @Body() body: SetRouteItemsRequestDto) {
+    return this.routesService.setItems(id, body.workOrderIds);
   }
 }
