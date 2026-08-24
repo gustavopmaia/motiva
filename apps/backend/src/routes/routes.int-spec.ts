@@ -21,6 +21,8 @@ const ALERT_A = "eeeeeeee-0000-4000-8000-00000000010a";
 const ALERT_B = "eeeeeeee-0000-4000-8000-00000000010b";
 const WO_A = "ffffffff-0000-4000-8000-00000000010a";
 const WO_B = "ffffffff-0000-4000-8000-00000000010b";
+const ALERT_C = "eeeeeeee-0000-4000-8000-00000000010c";
+const WO_C = "ffffffff-0000-4000-8000-00000000010c";
 
 describeDb("routes against a real database", () => {
   let drizzle: DrizzleService;
@@ -66,6 +68,22 @@ describeDb("routes against a real database", () => {
     await dispatch.runDispatch();
   });
 
+  async function teamOf(workOrderId: string): Promise<string | null> {
+    const [row] = await drizzle.db.execute<{ team: string | null }>(
+      sql`SELECT team FROM work_orders WHERE id = ${workOrderId}`,
+    );
+    return row.team;
+  }
+
+  async function criarRotaVazia(): Promise<string> {
+    const id = "aaaaaaaa-0000-4000-8000-00000000020a";
+    await drizzle.db.execute(sql`
+      INSERT INTO routes (id, team_id, date, status)
+      VALUES (${id}, ${TEAM_NORTE}, '2026-08-07', 'locked')
+    `);
+    return id;
+  }
+
   it("lista a rota planejada com as OS na ordem de visita", async () => {
     const [route] = await routes.findAll({});
 
@@ -79,7 +97,6 @@ describeDb("routes against a real database", () => {
   it("devolve a coordenada real do trecho em cada parada", async () => {
     const [route] = await routes.findAll({});
 
-    // Valores distintos entre si: uma troca de lat com lon quebra o teste.
     expect(route.items[0].lat).toBeCloseTo(-23.4162, 4);
     expect(route.items[0].lon).toBeCloseTo(-46.7841, 4);
   });
@@ -93,7 +110,7 @@ describeDb("routes against a real database", () => {
     const [planned] = await routes.findAll({});
     const invertida = [...planned.items].reverse().map((item) => item.workOrderId);
 
-    const reordered = await routes.reorder(planned.id, invertida);
+    const reordered = await routes.setItems(planned.id, invertida);
 
     expect(reordered.status).toBe("locked");
     expect(reordered.items.map((item) => item.workOrderId)).toEqual(invertida);
@@ -120,7 +137,7 @@ describeDb("routes against a real database", () => {
 
   it("libera a rota travada de volta para o planejamento automático", async () => {
     const [planned] = await routes.findAll({});
-    await routes.reorder(
+    await routes.setItems(
       planned.id,
       [...planned.items].reverse().map((i) => i.workOrderId),
     );
@@ -133,16 +150,67 @@ describeDb("routes against a real database", () => {
     expect(replanejada.items.map((item) => item.kmStart)).toEqual([10, 12]);
   });
 
-  it("recusa reordenar com um conjunto de OS diferente", async () => {
+  it("adiciona uma OS solta na rota e assume a equipe", async () => {
+    const [planned] = await routes.findAll({});
+    await insertAlert(drizzle, { id: ALERT_C, segmentId: SEGMENT_B, level: "urgent" });
+    await insertWorkOrder(drizzle, { id: WO_C, segmentId: SEGMENT_B, alertId: ALERT_C });
+
+    const atualizada = await routes.setItems(planned.id, [WO_A, WO_C, WO_B]);
+
+    expect(atualizada.items.map((item) => item.workOrderId)).toEqual([WO_A, WO_C, WO_B]);
+    expect(atualizada.items.map((item) => item.orderIndex)).toEqual([0, 1, 2]);
+    expect(await teamOf(WO_C)).toBe("Equipe Norte");
+  });
+
+  it("remove uma OS da rota e solta a equipe dela", async () => {
     const [planned] = await routes.findAll({});
 
-    await expect(routes.reorder(planned.id, [WO_A])).rejects.toBeInstanceOf(InvalidOperationError);
-    await expect(routes.reorder(planned.id, [WO_A, WO_A])).rejects.toBeInstanceOf(
+    const atualizada = await routes.setItems(planned.id, [WO_B]);
+
+    expect(atualizada.items.map((item) => item.workOrderId)).toEqual([WO_B]);
+    expect(await teamOf(WO_A)).toBeNull();
+
+    await dispatch.runDispatch();
+    const rotas = await routes.findAll({});
+    const roteadas = rotas.flatMap((route) => route.items.map((item) => item.workOrderId));
+    expect(roteadas).toContain(WO_A);
+  });
+
+  it("esvazia a rota quando a lista vem vazia", async () => {
+    const [planned] = await routes.findAll({});
+
+    const vazia = await routes.setItems(planned.id, []);
+
+    expect(vazia.items).toEqual([]);
+    expect(vazia.status).toBe("locked");
+    expect(await teamOf(WO_A)).toBeNull();
+  });
+
+  it("recusa OS duplicada, concluída, inexistente ou já roteada", async () => {
+    const [planned] = await routes.findAll({});
+    const inexistente = "ffffffff-0000-4000-8000-0000000001ff";
+
+    await expect(routes.setItems(planned.id, [WO_A, WO_A])).rejects.toBeInstanceOf(
       InvalidOperationError,
     );
-    await expect(routes.reorder(planned.id, [WO_A, WO_B, WO_B])).rejects.toBeInstanceOf(
+    await expect(routes.setItems(planned.id, [WO_A, inexistente])).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+
+    await insertAlert(drizzle, { id: ALERT_C, segmentId: SEGMENT_B, level: "urgent" });
+    await insertWorkOrder(drizzle, {
+      id: WO_C,
+      segmentId: SEGMENT_B,
+      alertId: ALERT_C,
+      status: "completed",
+    });
+    await expect(routes.setItems(planned.id, [WO_A, WO_C])).rejects.toBeInstanceOf(
       InvalidOperationError,
     );
+
+    await routes.setItems(planned.id, [WO_A, WO_B]);
+    const outra = await criarRotaVazia();
+    await expect(routes.setItems(outra, [WO_B])).rejects.toBeInstanceOf(InvalidOperationError);
   });
 
   it("falha quando a rota não existe", async () => {
@@ -150,6 +218,6 @@ describeDb("routes against a real database", () => {
 
     await expect(routes.findById(inexistente)).resolves.toBeNull();
     await expect(routes.updateStatus(inexistente, "locked")).rejects.toBeInstanceOf(NotFoundError);
-    await expect(routes.reorder(inexistente, [WO_A])).rejects.toBeInstanceOf(NotFoundError);
+    await expect(routes.setItems(inexistente, [WO_A])).rejects.toBeInstanceOf(NotFoundError);
   });
 });

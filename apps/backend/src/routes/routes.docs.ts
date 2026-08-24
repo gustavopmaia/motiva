@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { ArrayNotEmpty, IsArray, IsIn, IsOptional, IsString } from "class-validator";
+import { IsArray, IsIn, IsOptional, IsString } from "class-validator";
 import { ROUTE_STATUSES, RouteStatus } from "./route.entity";
 import { WORK_ORDER_PRIORITIES, WORK_ORDER_STATUSES } from "../work-orders/work-order.entity";
 import { OptionalString, RequiredEnum } from "../common/validation.decorators";
@@ -36,17 +36,16 @@ export class UpdateRouteRequestDto {
   status!: RouteStatus;
 }
 
-export class ReorderRouteItemsRequestDto {
+export class SetRouteItemsRequestDto {
   static readonly validationMessage = "Invalid route items payload.";
 
   @ApiProperty({
     description:
-      "Work order identifiers in the desired visit order. Must contain exactly the work orders currently in the route. Reordering locks the route.",
+      "Work order identifiers in the desired visit order. Work orders may be added, removed or reordered; an empty list clears the route. Each work order can belong to a single route. Changing the items locks the route.",
     type: [String],
     example: ["a5863a41-16a8-4121-aee1-d6c5b326b779", "b1f4e2c8-9a3d-4f21-8c77-2e5b9d0a1c43"],
   })
   @IsArray({ message: "workOrderIds must be an array" })
-  @ArrayNotEmpty({ message: "workOrderIds is required" })
   @IsString({ each: true, message: "workOrderIds must contain strings" })
   workOrderIds!: string[];
 }
