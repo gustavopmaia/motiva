@@ -6,16 +6,18 @@ export function BaseLayout() {
   const navigate = useNavigate();
 
   const params = new URLSearchParams(location.search);
-  const tab = params.get("tab") === "gallery" ? "gallery" : "map";
+  const rawTab = params.get("tab");
+  const tab: "map" | "gallery" | "work_orders" =
+    rawTab === "gallery" ? "gallery" : rawTab === "work_orders" ? "work_orders" : "map";
 
-  const handleTabChange = (newTab: "map" | "gallery") => {
+  const handleTabChange = (newTab: "map" | "gallery" | "work_orders") => {
     params.set("tab", newTab);
     navigate({ pathname: "/home", search: params.toString() });
   };
 
   return (
     <div>
-      <Navbar currentTab={tab as "map" | "gallery"} onTabChange={handleTabChange} />
+      <Navbar currentTab={tab} onTabChange={handleTabChange} />
       <main style={{ paddingTop: "64px" }}>
         <Outlet context={{ tab }} />
       </main>

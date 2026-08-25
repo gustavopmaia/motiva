@@ -2,8 +2,8 @@ import { Bell } from "lucide-react";
 import styles from "./index.module.css";
 
 interface INavbarProps {
-  currentTab: "map" | "gallery";
-  onTabChange: (tab: "map" | "gallery") => void;
+  currentTab: "map" | "gallery" | "work_orders";
+  onTabChange: (tab: "map" | "gallery" | "work_orders") => void;
 }
 
 export function Navbar({ currentTab, onTabChange }: INavbarProps) {
@@ -25,6 +25,13 @@ export function Navbar({ currentTab, onTabChange }: INavbarProps) {
             tabIndex={0}
           >
             Galeria
+          </a>
+          <a
+            className={`${styles.tab} ${currentTab === "work_orders" ? styles.active : ""}`}
+            onClick={() => onTabChange("work_orders")}
+            tabIndex={0}
+          >
+            Ordens de Serviço
           </a>
         </nav>
       </div>
