@@ -95,6 +95,30 @@ export const readings = pgTable(
   }),
 );
 
+export const vehicleCaptures = pgTable(
+  "vehicle_captures",
+  {
+    id: uuid("id").primaryKey(),
+    segmentId: uuid("segment_id")
+      .notNull()
+      .references(() => roadSegments.id),
+    photoPath: text("photo_path").notNull(),
+    lat: doublePrecision("lat").notNull(),
+    lon: doublePrecision("lon").notNull(),
+    capturedAt: timestamp("captured_at").notNull(),
+    classification: text("classification"),
+    confidence: doublePrecision("confidence"),
+    classifiedAt: timestamp("classified_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    segmentCreatedAtIndex: index("vehicle_captures_segment_created_at_idx").on(
+      table.segmentId,
+      table.createdAt,
+    ),
+  }),
+);
+
 export const alerts = pgTable(
   "alerts",
   {
