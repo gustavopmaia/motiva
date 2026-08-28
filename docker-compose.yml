@@ -51,6 +51,25 @@ services:
       retries: 10
     restart: unless-stopped
 
+  classifier:
+    image: ${CLASSIFIER_IMAGE:-ghcr.io/gustavopmaia/motiva/classifier:latest}
+    build:
+      context: .
+      dockerfile: apps/classifier/Dockerfile
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
   docs:
     image: ${DOCS_IMAGE:-ghcr.io/gustavopmaia/motiva/docs:latest}
     build:

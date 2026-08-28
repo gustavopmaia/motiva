@@ -12,5 +12,6 @@ import { SEGMENT_EVENTS_QUEUE } from "../common/queues";
   imports: [DatabaseModule, AuthModule, BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE })],
   providers: [FusionService, ReadingsService, ReadingsMqttHandler],
   controllers: [ReadingsController],
+  exports: [ReadingsService],
 })
 export class ReadingsModule {}
