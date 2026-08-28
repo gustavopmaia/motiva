@@ -41,6 +41,10 @@ export class VehicleCapturesService {
     mkdirSync(this.storageDir, { recursive: true });
   }
 
+  getStorageDir(): string {
+    return this.storageDir;
+  }
+
   async create(input: CreateVehicleCaptureInput, photo: Buffer): Promise<VehicleCapture> {
     const [segment] = await this.drizzle.db.execute<SegmentMatchRow>(sql`
       SELECT id
