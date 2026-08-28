@@ -35,6 +35,8 @@ COPY --from=builder /app/packages/types/package.json packages/types/
 COPY --from=builder /app/apps/backend/dist apps/backend/dist
 COPY --from=builder /app/apps/backend/drizzle apps/backend/drizzle
 
+RUN mkdir -p /data/vehicle-captures && chown node:node /data/vehicle-captures
+
 USER node
 EXPOSE 3000
 CMD ["node", "apps/backend/dist/src/main.js"]
