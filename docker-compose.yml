@@ -10,6 +10,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - vehicle-captures-data:/data/vehicle-captures
     ports:
       - "0.0.0.0:3000:3000"
     healthcheck:
@@ -60,3 +62,4 @@ services:
 
 volumes:
   postgres-data:
+  vehicle-captures-data:

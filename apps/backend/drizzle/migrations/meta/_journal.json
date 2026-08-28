@@ -64,6 +64,13 @@
       "when": 1777605108044,
       "tag": "0008_team_territory",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787928436500,
+      "tag": "0009_vehicle_captures",
+      "breakpoints": true
     }
   ]
 }
