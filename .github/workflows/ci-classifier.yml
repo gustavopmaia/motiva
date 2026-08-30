@@ -1,0 +1,49 @@
+name: CI Classifier
+
+# So dispara em mudanca do FastAPI/modelo. Independente do backend.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/classifier/**"
+      - ".github/workflows/ci-classifier.yml"
+  pull_request:
+    paths:
+      - "apps/classifier/**"
+      - ".github/workflows/ci-classifier.yml"
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}/classifier
+
+concurrency:
+  group: ci-classifier-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/classifier/Dockerfile
+          # Em PR so construimos (valida o Dockerfile); push so em main.
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          # Sem cache, cada build reinstala ~250MB de tensorflow-cpu.
+          cache-from: type=registry,ref=${{ env.IMAGE }}:cache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
