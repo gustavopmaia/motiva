@@ -1,0 +1,103 @@
+name: CI Backend
+
+# Monorepo: este workflow so dispara quando o codigo do NestJS (ou algo de que
+# ele depende) muda. Mexer no apps/classifier NAO rebuilda o backend.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/backend/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - "Dockerfile"
+      - ".github/workflows/ci-backend.yml"
+  pull_request:
+    paths:
+      - "apps/backend/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - "Dockerfile"
+      - ".github/workflows/ci-backend.yml"
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}/backend
+
+# Push novo na mesma branch cancela o build anterior: nao adianta publicar
+# imagem de um commit que ja foi superado.
+concurrency:
+  group: ci-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: motiva_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d motiva_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.14.0"
+          cache: "npm"
+
+      - run: npm ci
+
+      - run: npm run lint --workspace=backend
+
+      - run: npm run check-types --workspace=backend
+
+      - run: npm test --workspace=backend
+
+      - run: npm run test:integration --workspace=backend
+        env:
+          TEST_DATABASE_URL: postgresql://test:test@localhost:5432/motiva_test
+
+      - run: npm run build --workspace=backend
+
+  publish:
+    name: Build & Push Image
+    needs: test
+    # Em pull_request so validamos; publicar imagem e efeito colateral de main.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # Tag unica e imutavel por commit. Sem :latest — quem escolhe a versao
+          # em producao e o Argo CD Image Updater, escrevendo o SHA no Git.
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          # Cache de camadas no proprio registry: o build seguinte reaproveita
+          # o npm ci em vez de refazer do zero.
+          cache-from: type=registry,ref=${{ env.IMAGE }}:cache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
