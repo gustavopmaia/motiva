@@ -4,3 +4,7 @@ python-multipart==0.0.20
 tensorflow-cpu==2.18.0
 pillow==11.0.0
 numpy==1.26.4
+structlog==26.1.0
+asgi-correlation-id==5.0.1
+prometheus-fastapi-instrumentator==7.1.0
+prometheus-client==0.26.0
