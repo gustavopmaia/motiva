@@ -39,4 +39,6 @@ EXPOSE 8000
 
 # --workers 1: cada worker carrega uma copia inteira do modelo na RAM. Com
 # 2GB de limite no pod, mais de um worker estoura o limite e vira OOMKill.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# --no-access-log: o log de acesso sai pelo middleware em main.py (JSON
+# estruturado); sem isso o Uvicorn duplicaria a mesma requisicao em texto puro.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-access-log"]

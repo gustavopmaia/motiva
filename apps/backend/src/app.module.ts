@@ -4,6 +4,7 @@ import { APP_INTERCEPTOR } from "@nestjs/core";
 import { BullModule, getQueueToken } from "@nestjs/bullmq";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { LoggerModule } from "nestjs-pino";
 import { Queue } from "bullmq";
 import { AuthModule } from "./auth/auth.module";
 import { ReadingsModule } from "./readings/readings.module";
@@ -18,6 +19,7 @@ import { validateEnv } from "./common/env";
 import { DatabaseModule } from "./database/database.module";
 import { RedisThrottlerStorage } from "./common/redis-throttler.storage";
 import { ALERT_EVENTS_QUEUE, SEGMENT_EVENTS_QUEUE } from "./common/queues";
+import { createLoggerConfig } from "./common/logger.config";
 
 @Module({
   imports: [
@@ -25,6 +27,10 @@ import { ALERT_EVENTS_QUEUE, SEGMENT_EVENTS_QUEUE } from "./common/queues";
       isGlobal: true,
       envFilePath: ["apps/backend/.env", ".env"],
       validate: validateEnv,
+    }),
+    LoggerModule.forRootAsync({
+      useFactory: createLoggerConfig,
+      inject: [ConfigService],
     }),
     BullModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
