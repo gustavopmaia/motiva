@@ -35,7 +35,8 @@ COPY --from=builder /app/packages/types/package.json packages/types/
 COPY --from=builder /app/apps/backend/dist apps/backend/dist
 COPY --from=builder /app/apps/backend/drizzle apps/backend/drizzle
 
-RUN mkdir -p /data/vehicle-captures && chown node:node /data/vehicle-captures
+RUN mkdir -p /data/vehicle-captures /data/work-order-photos && \
+    chown node:node /data/vehicle-captures /data/work-order-photos
 
 USER node
 EXPOSE 3000
