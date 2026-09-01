@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { Team } from "../teams/team.entity";
 import { WorkOrderPriority } from "./work-order.entity";
@@ -177,11 +177,19 @@ export class DispatchService {
   private async clearStaleRouteItems(tx: Tx, workOrderIds: string[]): Promise<void> {
     if (workOrderIds.length === 0) return;
 
-    await tx.execute(sql`
-      DELETE FROM route_items
-      WHERE work_order_id = ANY(${workOrderIds}::uuid[])
-        AND route_id IN (SELECT id FROM routes WHERE status != 'locked')
-    `);
+    const openRouteIds = tx
+      .select({ id: routes.id })
+      .from(routes)
+      .where(ne(routes.status, "locked"));
+
+    await tx
+      .delete(routeItems)
+      .where(
+        and(
+          inArray(routeItems.workOrderId, workOrderIds),
+          inArray(routeItems.routeId, openRouteIds),
+        ),
+      );
   }
 
   private async findDispatchableWorkOrders(): Promise<DispatchWorkOrder[]> {
