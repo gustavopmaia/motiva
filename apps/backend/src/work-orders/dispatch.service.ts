@@ -148,6 +148,11 @@ export class DispatchService {
       createdAt: new Date(),
     });
 
+    await this.clearStaleRouteItems(
+      tx,
+      batch.map((workOrder) => workOrder.id),
+    );
+
     await tx.insert(routeItems).values(
       batch.map((workOrder, index) => ({
         id: randomUUID(),
@@ -167,6 +172,16 @@ export class DispatchService {
           batch.map((wo) => wo.id),
         ),
       );
+  }
+
+  private async clearStaleRouteItems(tx: Tx, workOrderIds: string[]): Promise<void> {
+    if (workOrderIds.length === 0) return;
+
+    await tx.execute(sql`
+      DELETE FROM route_items
+      WHERE work_order_id = ANY(${workOrderIds}::uuid[])
+        AND route_id IN (SELECT id FROM routes WHERE status != 'locked')
+    `);
   }
 
   private async findDispatchableWorkOrders(): Promise<DispatchWorkOrder[]> {
