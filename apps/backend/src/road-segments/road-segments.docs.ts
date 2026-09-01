@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ROAD_SEGMENT_DIRECTIONS } from "./road-segment.entity";
 
 export class RoadSegmentResponseDto {
   @ApiProperty({
@@ -22,6 +23,15 @@ export class RoadSegmentResponseDto {
     nullable: true,
   })
   mowingType!: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      "Carriageway direction (sentido/pista). Null on legacy segments not yet backfilled.",
+    enum: ROAD_SEGMENT_DIRECTIONS,
+    example: "norte",
+    nullable: true,
+  })
+  direction!: string | null;
 
   @ApiPropertyOptional({
     description: "Current fused vegetation score (0–100). Null when no readings exist yet.",

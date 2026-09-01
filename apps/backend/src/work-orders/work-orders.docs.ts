@@ -2,8 +2,10 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsIn, IsOptional, IsString } from "class-validator";
 import {
   PATCHABLE_WORK_ORDER_STATUSES,
+  WORK_ORDER_LOCATIONS,
   WORK_ORDER_PRIORITIES,
   WORK_ORDER_STATUSES,
+  WorkOrderLocation,
   WorkOrderPriority,
   WorkOrderStatus,
 } from "./work-order.entity";
@@ -79,6 +81,15 @@ export class CreateWorkOrderRequestDto {
   })
   @OptionalString()
   observation?: string | null;
+
+  @ApiPropertyOptional({
+    description: "Location within the right-of-way where the service was performed.",
+    enum: WORK_ORDER_LOCATIONS,
+    example: "faixa_1",
+  })
+  @IsOptional()
+  @IsIn(WORK_ORDER_LOCATIONS, { message: "location is invalid" })
+  location?: WorkOrderLocation | null;
 }
 
 export class UpdateWorkOrderRequestDto {
@@ -108,6 +119,16 @@ export class UpdateWorkOrderRequestDto {
   })
   @OptionalString()
   observation?: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      "Location within the right-of-way where the service was performed. Send null to clear it.",
+    enum: WORK_ORDER_LOCATIONS,
+    example: "faixa_1",
+  })
+  @IsOptional()
+  @IsIn(WORK_ORDER_LOCATIONS, { message: "location is invalid" })
+  location?: WorkOrderLocation | null;
 }
 
 export class WorkOrderResponseDto {
@@ -162,6 +183,14 @@ export class WorkOrderResponseDto {
     example: "Vegetation is close to the shoulder near km 42.",
   })
   observation!: string | null;
+
+  @ApiProperty({
+    description: "Location within the right-of-way where the service was performed.",
+    enum: WORK_ORDER_LOCATIONS,
+    nullable: true,
+    example: "faixa_1",
+  })
+  location!: string | null;
 
   @ApiProperty({
     description: "Date and time when the work order was created.",

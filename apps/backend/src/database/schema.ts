@@ -51,6 +51,7 @@ export const roadSegments = pgTable(
     kmStart: numeric("km_start", { precision: 10, scale: 3 }).notNull(),
     kmEnd: numeric("km_end", { precision: 10, scale: 3 }).notNull(),
     mowingType: text("mowing_type"),
+    direction: text("direction"),
     geometry: lineStringGeometry("geometry").notNull(),
     scoreCurrent: doublePrecision("score_current"),
     scoreDivergent: boolean("score_divergent").default(false).notNull(),
@@ -156,6 +157,7 @@ export const workOrders = pgTable(
     scoreAtCreation: doublePrecision("score_at_creation").notNull(),
     team: text("team"),
     observation: text("observation"),
+    location: text("location"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     startedAt: timestamp("started_at"),
     completedAt: timestamp("completed_at"),
@@ -164,6 +166,52 @@ export const workOrders = pgTable(
     workOrdersAlertIdUnique: uniqueIndex("work_orders_alert_id_unique").on(table.alertId),
     workOrdersStatusIdx: index("work_orders_status_idx").on(table.status),
     workOrdersSegmentIdx: index("work_orders_segment_idx").on(table.segmentId),
+  }),
+);
+
+export const workOrderPhotos = pgTable(
+  "work_order_photos",
+  {
+    id: uuid("id").primaryKey(),
+    workOrderId: uuid("work_order_id")
+      .notNull()
+      .references(() => workOrders.id),
+    photoPath: text("photo_path").notNull(),
+    photoHash: text("photo_hash").notNull(),
+    lat: doublePrecision("lat").notNull(),
+    lon: doublePrecision("lon").notNull(),
+    capturedAt: timestamp("captured_at").notNull(),
+    exifLat: doublePrecision("exif_lat"),
+    exifLon: doublePrecision("exif_lon"),
+    exifCapturedAt: timestamp("exif_captured_at"),
+    validationStatus: text("validation_status").notNull(),
+    distanceMeters: doublePrecision("distance_meters"),
+    timeDiffSeconds: integer("time_diff_seconds"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    workOrderIdUnique: uniqueIndex("work_order_photos_work_order_id_unique").on(table.workOrderId),
+  }),
+);
+
+export const generatedReports = pgTable(
+  "generated_reports",
+  {
+    id: uuid("id").primaryKey(),
+    reportType: text("report_type").notNull(),
+    period: text("period").notNull(),
+    format: text("format").notNull(),
+    roadName: text("road_name"),
+    generatedBy: uuid("generated_by")
+      .notNull()
+      .references(() => users.id),
+    generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    generatedReportsTypePeriodIdx: index("generated_reports_type_period_idx").on(
+      table.reportType,
+      table.period,
+    ),
   }),
 );
 

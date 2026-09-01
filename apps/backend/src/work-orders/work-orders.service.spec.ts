@@ -11,6 +11,7 @@ const openOrder: WorkOrder = {
   scoreAtCreation: 70,
   team: null,
   observation: null,
+  location: null,
   createdAt: new Date(),
   startedAt: null,
   completedAt: null,

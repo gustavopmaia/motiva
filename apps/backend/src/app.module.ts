@@ -13,6 +13,7 @@ import { WorkOrdersModule } from "./work-orders/work-orders.module";
 import { RoadSegmentsModule } from "./road-segments/road-segments.module";
 import { RoutesModule } from "./routes/routes.module";
 import { VehicleCapturesModule } from "./vehicle-captures/vehicle-captures.module";
+import { ReportsModule } from "./reports/reports.module";
 import { HealthController } from "./health/health.controller";
 import { MetricsController, MetricsInterceptor } from "./metrics/metrics";
 import { validateEnv } from "./common/env";
@@ -57,6 +58,7 @@ import { createLoggerConfig } from "./common/logger.config";
     RoadSegmentsModule,
     RoutesModule,
     VehicleCapturesModule,
+    ReportsModule,
   ],
   controllers: [HealthController, MetricsController],
   providers: [{ provide: APP_INTERCEPTOR, useClass: MetricsInterceptor }],

@@ -10,6 +10,7 @@ import { DatabaseModule } from "../database/database.module";
 import { AuthModule } from "../auth/auth.module";
 import { TeamsModule } from "../teams/teams.module";
 import { ALERT_EVENTS_QUEUE, SEGMENT_EVENTS_QUEUE } from "../common/queues";
+import { WorkOrderPhotosService } from "../work-order-photos/work-order-photos.service";
 
 @Module({
   imports: [
@@ -20,7 +21,13 @@ import { ALERT_EVENTS_QUEUE, SEGMENT_EVENTS_QUEUE } from "../common/queues";
     BullModule.registerQueue({ name: ALERT_EVENTS_QUEUE }),
     BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE }),
   ],
-  providers: [WorkOrdersProcessor, DispatchCronService, DispatchService, WorkOrdersService],
+  providers: [
+    WorkOrdersProcessor,
+    DispatchCronService,
+    DispatchService,
+    WorkOrdersService,
+    WorkOrderPhotosService,
+  ],
   controllers: [WorkOrdersController],
 })
 export class WorkOrdersModule {}

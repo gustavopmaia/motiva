@@ -9,6 +9,7 @@ const seg = (score: number | null = null): RoadSegment => ({
   kmStart: 0,
   kmEnd: 1,
   mowingType: null,
+  direction: null,
   scoreCurrent: score,
   scoreDivergent: false,
   geometry: {

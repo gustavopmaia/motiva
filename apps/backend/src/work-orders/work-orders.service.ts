@@ -19,12 +19,14 @@ export type CreateWorkOrderInput = {
   scoreAtCreation: number;
   team?: string | null;
   observation?: string | null;
+  location?: string | null;
 };
 
 export type UpdateWorkOrderInput = {
   status?: WorkOrderStatus;
   team?: string | null;
   observation?: string | null;
+  location?: string | null;
 };
 
 @Injectable()
@@ -63,6 +65,7 @@ export class WorkOrdersService {
         scoreAtCreation: input.scoreAtCreation,
         team: input.team ?? null,
         observation: input.observation ?? null,
+        location: input.location ?? null,
         createdAt: new Date(),
         startedAt: null,
         completedAt: null,
@@ -100,6 +103,7 @@ export class WorkOrdersService {
         status: newStatus,
         team: newTeam,
         observation: input.observation !== undefined ? input.observation : existing.observation,
+        location: input.location !== undefined ? input.location : existing.location,
         startedAt,
         completedAt: existing.completedAt,
       })
@@ -194,6 +198,7 @@ function toWorkOrder(row: typeof workOrders.$inferSelect): WorkOrder {
     scoreAtCreation: row.scoreAtCreation,
     team: row.team,
     observation: row.observation,
+    location: row.location as WorkOrder["location"],
     createdAt: row.createdAt,
     startedAt: row.startedAt,
     completedAt: row.completedAt,

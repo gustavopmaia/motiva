@@ -71,6 +71,20 @@
       "when": 1787928436500,
       "tag": "0009_vehicle_captures",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788278400000,
+      "tag": "0010_work_order_photos",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788364800000,
+      "tag": "0011_report_dimensions",
+      "breakpoints": true
     }
   ]
 }
