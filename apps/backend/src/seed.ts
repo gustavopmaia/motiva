@@ -41,11 +41,11 @@ const READING_SOURCES = [
   { source: "satellite", confidence: 0.5, offset: -8 },
 ];
 
-export type Db = DrizzleService["db"];
+type Db = DrizzleService["db"];
 
 type Level = (typeof LEVELS)[number];
 
-export type Segment = {
+type Segment = {
   id: string;
   kmStart: number;
   kmEnd: number;
@@ -73,7 +73,7 @@ async function ensureFieldUser(db: Db, password: string): Promise<string> {
 }
 
 /** The road already imported, or the fallback one when the database is empty. */
-export async function resolveRoad(db: Db): Promise<string> {
+async function resolveRoad(db: Db): Promise<string> {
   const [busiest] = await db.execute<{ roadName: string }>(sql`
     SELECT road_name AS "roadName"
     FROM road_segments
@@ -103,7 +103,7 @@ export async function resolveRoad(db: Db): Promise<string> {
   return FALLBACK_ROAD;
 }
 
-export async function findSegments(db: Db, road: string): Promise<Segment[]> {
+async function findSegments(db: Db, road: string): Promise<Segment[]> {
   const rows = await db.execute<{
     id: string;
     kmStart: string;
