@@ -113,11 +113,6 @@ export const ANTT_ANNUAL_CONTEXT = (year: string): ReportContext => ({
   title: "Relatorio Anual de Monitoracao — Faixa de Dominio",
   subtitleLines: ["Referencia: PER item 3.3.6 / 4.2.6 — conservacao do revestimento vegetal"],
   periodLabel: `Ano de referencia: ${year}`,
-  disclaimer:
-    "Aviso: cobre apenas a execucao de rocagem/capina rastreada por este sistema. O relatorio " +
-    "anual completo exigido pelo PER da ANTT tambem inclui cadastro de ocupacoes irregulares na " +
-    "faixa de dominio, avaliacao de risco de arvores individuais, e validacao por um Verificador " +
-    "externo credenciado — nenhum desses itens e coberto aqui.",
 });
 
 @Injectable()
