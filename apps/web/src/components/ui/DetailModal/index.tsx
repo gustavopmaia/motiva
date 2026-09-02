@@ -31,7 +31,7 @@ const LOCATION_LABELS: Record<string, string> = {
 
 export interface MapPointDetail {
   id: string;
-  type: "segment" | "alert" | "work_order";
+  type: "segment" | "alert" | "work_order" | "team_base";
   title: string;
   roadName: string;
   kmStart: number;
@@ -82,6 +82,8 @@ export function DetailModal({ isOpen, onClose, point }: DetailModalProps) {
         return "Alerta";
       case "work_order":
         return "Ordem de Serviço";
+      case "team_base":
+        return "Base da Equipe";
       default:
         return "Ponto";
     }
@@ -159,8 +161,9 @@ export function DetailModal({ isOpen, onClose, point }: DetailModalProps) {
             <div className={styles.subtitle}>
               <MapPin size={16} />
               <span>
-                {point.roadName} - km {point.kmStart.toString().replace(".", ",")} até km{" "}
-                {point.kmEnd.toString().replace(".", ",")}
+                {point.type === "team_base"
+                  ? point.roadName
+                  : `${point.roadName} - km ${point.kmStart.toString().replace(".", ",")} até km ${point.kmEnd.toString().replace(".", ",")}`}
               </span>
             </div>
           </div>

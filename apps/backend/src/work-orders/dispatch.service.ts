@@ -14,6 +14,8 @@ export type DispatchWorkOrder = {
   createdAt: Date;
   kmStart: number;
   kmEnd: number;
+  lat: number;
+  lon: number;
 };
 
 type DispatchWorkOrderRow = Omit<
@@ -82,7 +84,12 @@ export class DispatchService {
 
       const capacity = Math.max(0, team.capacityPerDay);
       const batches =
-        capacity > 0 ? buildGeographicBatches(workOrdersByTeam.get(team.id) ?? [], capacity) : [];
+        capacity > 0
+          ? buildGeographicBatches(workOrdersByTeam.get(team.id) ?? [], capacity, {
+              lat: team.baseLat,
+              lon: team.baseLng,
+            })
+          : [];
 
       await this.replanTeamRoutes(team, batches);
       totalRoutesCreated += batches.length;
@@ -201,7 +208,9 @@ export class DispatchService {
         wo.priority,
         wo.created_at AS "createdAt",
         rs.km_start AS "kmStart",
-        rs.km_end AS "kmEnd"
+        rs.km_end AS "kmEnd",
+        ST_Y(ST_StartPoint(rs.geometry)) AS lat,
+        ST_X(ST_StartPoint(rs.geometry)) AS lon
       FROM work_orders wo
       INNER JOIN road_segments rs ON rs.id = wo.segment_id
       WHERE wo.status = 'open'
@@ -255,9 +264,22 @@ export class DispatchService {
   }
 }
 
+const EARTH_RADIUS_METERS = 6_371_000;
+
+function distanceMeters(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const sinLat = Math.sin(dLat / 2);
+  const sinLon = Math.sin(dLon / 2);
+  const h = sinLat * sinLat + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinLon * sinLon;
+  return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(h));
+}
+
 export function buildGeographicBatches(
   workOrders: DispatchWorkOrder[],
   capacityPerDay: number,
+  homeBase?: { lat: number; lon: number },
 ): DispatchWorkOrder[][] {
   const sorted = [...workOrders].sort((a, b) => {
     const priority = PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
@@ -293,6 +315,19 @@ export function buildGeographicBatches(
     }
 
     batch.sort((a, b) => a.kmStart - b.kmStart);
+
+    // Comeca a rota pela ponta mais perto da base do time, senao a equipe
+    // as vezes teria que atravessar o proprio trecho do dia so pra chegar
+    // no primeiro ponto (base pode estar mais perto do fim do lote que do
+    // inicio, dado que os lotes nao sao necessariamente contiguos).
+    if (homeBase && batch.length > 1) {
+      const first = batch[0];
+      const last = batch[batch.length - 1];
+      if (distanceMeters(homeBase, last) < distanceMeters(homeBase, first)) {
+        batch.reverse();
+      }
+    }
+
     batches.push(batch);
   }
 

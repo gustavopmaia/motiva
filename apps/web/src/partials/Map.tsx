@@ -58,11 +58,19 @@ interface Route {
   items: RouteItem[];
 }
 
+interface TeamBase {
+  id: string;
+  name: string;
+  baseLat: number;
+  baseLng: number;
+  roadName: string;
+}
+
 interface ProcessedPoint {
   id: string;
   position: [number, number];
   detail: MapPointDetail;
-  level: "normal" | "attention" | "urgent" | "critical" | "work_order";
+  level: "normal" | "attention" | "urgent" | "critical" | "work_order" | "base";
 }
 
 function createCustomMarkerIcon(level: ProcessedPoint["level"]) {
@@ -78,6 +86,9 @@ function createCustomMarkerIcon(level: ProcessedPoint["level"]) {
   } else if (level === "work_order") {
     color = "#3b82f6";
     iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+  } else if (level === "base") {
+    color = "#8b5cf6";
+    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>`;
   }
 
   const html = `
@@ -159,8 +170,31 @@ export function MapPartial() {
     ([url, t]) => fetcher<Route[]>(url, t as string),
   );
 
+  const { data: teamBases } = useSWRImmutable<TeamBase[]>(
+    token ? ["/v1/teams", token] : null,
+    ([url, t]) => fetcher<TeamBase[]>(url, t as string),
+  );
+
   const points = useMemo(() => {
     const list: ProcessedPoint[] = [];
+
+    if (teamBases && Array.isArray(teamBases)) {
+      teamBases.forEach((base) => {
+        list.push({
+          id: `base-${base.id}`,
+          position: [base.baseLat, base.baseLng],
+          level: "base",
+          detail: {
+            id: base.id,
+            type: "team_base",
+            title: `Base — ${base.name}`,
+            roadName: base.roadName,
+            kmStart: 0,
+            kmEnd: 0,
+          },
+        });
+      });
+    }
 
     const segMap = new Map<string, RoadSegment>();
     if (segments && Array.isArray(segments)) {
@@ -290,7 +324,7 @@ export function MapPartial() {
     }
 
     return list;
-  }, [segments, alerts, workOrders]);
+  }, [segments, alerts, workOrders, teamBases]);
 
   const displayPoints = useMemo(() => {
     if (workOrdersOnly) {
@@ -304,6 +338,7 @@ export function MapPartial() {
       }
 
       return points.filter((p) => {
+        if (p.level === "base") return true;
         if (p.level !== "work_order" && p.detail.type !== "work_order") return false;
         if (teamWoIds.size > 0) {
           return teamWoIds.has(p.detail.id);
@@ -367,9 +402,11 @@ export function MapPartial() {
             <Tooltip direction="top" offset={[0, -18]} opacity={1}>
               <div style={{ textAlign: "center", padding: "2px 4px" }}>
                 <strong>{point.detail.title}</strong>
-                <div>
-                  km {point.detail.kmStart} - km {point.detail.kmEnd}
-                </div>
+                {point.detail.type !== "team_base" && (
+                  <div>
+                    km {point.detail.kmStart} - km {point.detail.kmEnd}
+                  </div>
+                )}
               </div>
             </Tooltip>
           </Marker>

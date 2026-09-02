@@ -23,6 +23,10 @@ const wo = (
   createdAt,
   kmStart,
   kmEnd,
+  // lon usado como proxy linear de posicao (igual ao km) so pra testar
+  // distancia da base sem precisar de coordenadas geograficas de verdade.
+  lat: 0,
+  lon: kmStart,
 });
 
 const team = (overrides: Partial<Team> = {}): Team => ({
@@ -110,6 +114,30 @@ describe("buildGeographicBatches", () => {
 
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.sort()).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("sem base informada, mantem ordem crescente de km (compatibilidade)", () => {
+    const orders = [wo("km20", 20, 21), wo("km5", 5, 6)];
+
+    const [batch] = buildGeographicBatches(orders, 2);
+
+    expect(batch.map((b) => b.id)).toEqual(["km5", "km20"]);
+  });
+
+  it("comeca a rota pela ponta mais perto da base do time", () => {
+    const orders = [wo("km5", 5, 6), wo("km20", 20, 21)];
+
+    const [batch] = buildGeographicBatches(orders, 2, { lat: 0, lon: 25 });
+
+    expect(batch.map((b) => b.id)).toEqual(["km20", "km5"]);
+  });
+
+  it("mantem ordem crescente quando a base ja esta perto do inicio", () => {
+    const orders = [wo("km5", 5, 6), wo("km20", 20, 21)];
+
+    const [batch] = buildGeographicBatches(orders, 2, { lat: 0, lon: 0 });
+
+    expect(batch.map((b) => b.id)).toEqual(["km5", "km20"]);
   });
 });
 

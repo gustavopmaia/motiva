@@ -7,9 +7,46 @@ import { teamMembers, teams } from "../database/schema";
 
 export type DataScope = { kind: "all" } | { kind: "team"; team: TeamInfo } | { kind: "none" };
 
+export type TeamBase = {
+  id: string;
+  name: string;
+  baseLat: number;
+  baseLng: number;
+  roadName: string;
+};
+
 @Injectable()
 export class TeamsService {
   constructor(private readonly drizzle: DrizzleService) {}
+
+  async findAllActiveBases(): Promise<TeamBase[]> {
+    return this.drizzle.db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        baseLat: teams.baseLat,
+        baseLng: teams.baseLng,
+        roadName: teams.roadName,
+      })
+      .from(teams)
+      .where(eq(teams.active, true));
+  }
+
+  async findBaseById(id: string): Promise<TeamBase | null> {
+    const [row] = await this.drizzle.db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        baseLat: teams.baseLat,
+        baseLng: teams.baseLng,
+        roadName: teams.roadName,
+      })
+      .from(teams)
+      .where(eq(teams.id, id))
+      .limit(1);
+
+    return row ?? null;
+  }
 
   async scopeFor(user: JwtPayload): Promise<DataScope> {
     if (user.role !== "field") return { kind: "all" };
