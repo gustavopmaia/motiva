@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { MapContainer, TileLayer, Marker, Tooltip } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import useSWRImmutable from "swr/immutable";
 import { fetcher } from "@/services/api";
@@ -129,6 +129,30 @@ function extractSegmentCenter(seg: RoadSegment): [number, number] | null {
   return null;
 }
 
+type MarkerCategory = "team_base" | "segment" | "alert" | "work_order";
+
+const CATEGORY_LABELS: Record<MarkerCategory, string> = {
+  team_base: "Bases das equipes",
+  segment: "Trechos",
+  alert: "Alertas",
+  work_order: "Ordens de serviço",
+};
+
+// As bases ficam bem longe uma da outra na rodovia real — sem ajustar o
+// enquadramento pro conjunto de pontos, um centro fixo deixa uma delas (ou
+// os dois lados da rodovia) fora da tela sem nenhum aviso visual.
+function FitBoundsToPoints({ points }: { points: ProcessedPoint[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (points.length === 0) return;
+    const bounds = L.latLngBounds(points.map((p) => p.position));
+    map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14 });
+  }, [points, map]);
+
+  return null;
+}
+
 function getSegmentCoordinates(index: number, total: number): [number, number] {
   const baseLat = -23.55052;
   const baseLon = -46.633308;
@@ -144,6 +168,18 @@ export function MapPartial() {
   const location = useLocation();
   const [selectedPoint, setSelectedPoint] = useState<MapPointDetail | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [visibleCategories, setVisibleCategories] = useState<Set<MarkerCategory>>(
+    () => new Set(["team_base", "segment", "alert", "work_order"]),
+  );
+
+  const toggleCategory = (category: MarkerCategory) => {
+    setVisibleCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
 
   const workOrdersOnly = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -349,6 +385,11 @@ export function MapPartial() {
     return points;
   }, [points, workOrdersOnly, routes]);
 
+  const visiblePoints = useMemo(
+    () => displayPoints.filter((p) => visibleCategories.has(p.detail.type as MarkerCategory)),
+    [displayPoints, visibleCategories],
+  );
+
   const handleMarkerClick = (detail: MapPointDetail) => {
     setSelectedPoint(detail);
     setIsModalOpen(true);
@@ -383,14 +424,46 @@ export function MapPartial() {
         </div>
       )}
 
+      <div
+        style={{
+          position: "absolute",
+          top: "16px",
+          left: "16px",
+          zIndex: 1000,
+          backgroundColor: "var(--color-surface)",
+          borderRadius: "12px",
+          padding: "10px 14px",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+          fontSize: "12px",
+        }}
+      >
+        {(Object.keys(CATEGORY_LABELS) as MarkerCategory[]).map((category) => (
+          <label
+            key={category}
+            style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+          >
+            <input
+              type="checkbox"
+              checked={visibleCategories.has(category)}
+              onChange={() => toggleCategory(category)}
+            />
+            {CATEGORY_LABELS[category]}
+          </label>
+        ))}
+      </div>
+
       <MapContainer
         center={[-23.55052, -46.633308]}
         zoom={13}
-        minZoom={10}
+        minZoom={9}
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        {displayPoints.map((point) => (
+        <FitBoundsToPoints points={displayPoints} />
+        {visiblePoints.map((point) => (
           <Marker
             key={point.id}
             position={point.position}
