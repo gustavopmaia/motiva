@@ -4,7 +4,7 @@ import { jwtDecode } from "jwt-decode";
 import { useAuth } from "@/contexts/AuthContext";
 import styles from "./index.module.css";
 
-type Tab = "dashboard" | "map" | "gallery" | "work_orders" | "reports";
+type Tab = "map" | "gallery" | "work_orders" | "reports";
 
 interface INavbarProps {
   currentTab: Tab;
@@ -32,15 +32,6 @@ export function Navbar({ currentTab, onTabChange }: INavbarProps) {
       <div className={styles.left}>
         <h2 className={styles.logo}>Cultiva</h2>
         <nav className={styles.navTabs}>
-          {isAdmin && (
-            <a
-              className={`${styles.tab} ${currentTab === "dashboard" ? styles.active : ""}`}
-              onClick={() => onTabChange("dashboard")}
-              tabIndex={0}
-            >
-              Painel
-            </a>
-          )}
           <a
             className={`${styles.tab} ${currentTab === "map" ? styles.active : ""}`}
             onClick={() => onTabChange("map")}

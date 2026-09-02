@@ -14,7 +14,6 @@ import { RoadSegmentsModule } from "./road-segments/road-segments.module";
 import { RoutesModule } from "./routes/routes.module";
 import { VehicleCapturesModule } from "./vehicle-captures/vehicle-captures.module";
 import { ReportsModule } from "./reports/reports.module";
-import { DashboardModule } from "./dashboard/dashboard.module";
 import { HealthController } from "./health/health.controller";
 import { MetricsController, MetricsInterceptor } from "./metrics/metrics";
 import { validateEnv } from "./common/env";
@@ -60,7 +59,6 @@ import { createLoggerConfig } from "./common/logger.config";
     RoutesModule,
     VehicleCapturesModule,
     ReportsModule,
-    DashboardModule,
   ],
   controllers: [HealthController, MetricsController],
   providers: [{ provide: APP_INTERCEPTOR, useClass: MetricsInterceptor }],

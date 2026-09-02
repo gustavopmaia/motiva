@@ -3,13 +3,10 @@ import { GalleryPartial } from "@/partials/Gallery";
 import { MapPartial } from "@/partials/Map";
 import { WorkOrdersPartial } from "@/partials/WorkOrders";
 import { ReportsPartial } from "@/partials/Reports";
-import { DashboardPartial } from "@/partials/Dashboard";
 import { useOutletContext } from "react-router-dom";
 
-type Tab = "dashboard" | "map" | "gallery" | "work_orders" | "reports";
-
 export function HomePage() {
-  const { tab } = useOutletContext<{ tab: Tab }>();
+  const { tab } = useOutletContext<{ tab: "map" | "gallery" | "work_orders" | "reports" }>();
 
   return (
     <AuthGuard access="private">
@@ -19,8 +16,6 @@ export function HomePage() {
         <WorkOrdersPartial />
       ) : tab === "reports" ? (
         <ReportsPartial />
-      ) : tab === "dashboard" ? (
-        <DashboardPartial />
       ) : (
         <MapPartial />
       )}
