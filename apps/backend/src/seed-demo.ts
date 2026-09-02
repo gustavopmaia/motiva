@@ -108,25 +108,28 @@ async function completeWithDemoData(
   outcome: DemoOutcome,
   photoIndex: number,
 ): Promise<void> {
+  // db.execute(sql`...`) nao mapeia tipos (postgres.js unsafe()) — bindar um
+  // Date cru quebra com "argument must be of type string", sempre .toISOString().
   const completedAt = randomPastDate();
   const startedAt = new Date(completedAt.getTime() - 2 * 24 * 60 * 60 * 1000);
   const location = WORK_ORDER_LOCATIONS[photoIndex % WORK_ORDER_LOCATIONS.length];
+  const completedAtIso = completedAt.toISOString();
 
   await db.execute(sql`
     UPDATE work_orders
-    SET status = 'completed', started_at = ${startedAt}, completed_at = ${completedAt}, location = ${location}
+    SET status = 'completed', started_at = ${startedAt.toISOString()}, completed_at = ${completedAtIso}, location = ${location}
     WHERE id = ${row.id}
   `);
   await db.execute(sql`
     UPDATE work_orders
-    SET status = 'completed', completed_at = ${completedAt}
+    SET status = 'completed', completed_at = ${completedAtIso}
     WHERE segment_id = ${row.segmentId} AND id != ${row.id} AND status != 'completed'
   `);
   await db.execute(sql`
     UPDATE road_segments SET score_current = 0, score_divergent = false WHERE id = ${row.segmentId}
   `);
   await db.execute(sql`
-    UPDATE alerts SET closed_at = ${completedAt}
+    UPDATE alerts SET closed_at = ${completedAtIso}
     WHERE segment_id = ${row.segmentId} AND closed_at IS NULL
   `);
 
@@ -147,8 +150,8 @@ async function completeWithDemoData(
       id, work_order_id, photo_path, photo_hash, lat, lon, captured_at,
       exif_lat, exif_lon, exif_captured_at, validation_status, distance_meters, time_diff_seconds
     ) VALUES (
-      ${id}, ${row.id}, ${photoPath}, ${photoHash}, ${sent.lat}, ${sent.lon}, ${sent.capturedAt},
-      ${exif?.lat ?? null}, ${exif?.lon ?? null}, ${exif?.capturedAt ?? null},
+      ${id}, ${row.id}, ${photoPath}, ${photoHash}, ${sent.lat}, ${sent.lon}, ${sent.capturedAt.toISOString()},
+      ${exif?.lat ?? null}, ${exif?.lon ?? null}, ${exif ? exif.capturedAt.toISOString() : null},
       ${compared.status}, ${compared.distanceMeters}, ${compared.timeDiffSeconds}
     )
   `);
