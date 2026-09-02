@@ -1,11 +1,20 @@
 import { MapPin, BarChart2 } from "lucide-react";
 import styles from "./index.module.css";
 
+const DIRECTION_LABELS: Record<string, string> = {
+  norte: "Norte",
+  sul: "Sul",
+  leste: "Leste",
+  oeste: "Oeste",
+  unica: "Única",
+};
+
 interface RoadSegmentCardProps {
   roadName: string;
   kmStart: number;
   kmEnd: number;
   mowingType: string;
+  direction?: string | null;
   scoreCurrent: number;
   scoreDivergent: boolean;
   image?: string;
@@ -16,6 +25,7 @@ export function RoadSegmentCard({
   kmStart,
   kmEnd,
   mowingType,
+  direction,
   scoreCurrent,
   image,
 }: RoadSegmentCardProps) {
@@ -29,6 +39,11 @@ export function RoadSegmentCard({
       <div className={styles.content}>
         <div className={styles.header}>
           <h3 className={styles.roadName}>{roadName}</h3>
+          {direction && (
+            <span className={styles.directionBadge}>
+              {DIRECTION_LABELS[direction] ?? direction}
+            </span>
+          )}
         </div>
 
         <span className={styles.mowingType}>{mowingType}</span>

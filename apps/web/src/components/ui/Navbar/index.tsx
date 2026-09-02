@@ -1,12 +1,32 @@
+import { useMemo } from "react";
 import { Bell } from "lucide-react";
+import { jwtDecode } from "jwt-decode";
+import { useAuth } from "@/contexts/AuthContext";
 import styles from "./index.module.css";
 
+type Tab = "map" | "gallery" | "work_orders" | "reports";
+
 interface INavbarProps {
-  currentTab: "map" | "gallery" | "work_orders";
-  onTabChange: (tab: "map" | "gallery" | "work_orders") => void;
+  currentTab: Tab;
+  onTabChange: (tab: Tab) => void;
+}
+
+interface TokenPayload {
+  role?: string;
 }
 
 export function Navbar({ currentTab, onTabChange }: INavbarProps) {
+  const { token } = useAuth();
+
+  const isAdmin = useMemo(() => {
+    if (!token) return false;
+    try {
+      return jwtDecode<TokenPayload>(token).role === "manager";
+    } catch {
+      return false;
+    }
+  }, [token]);
+
   return (
     <header className={styles.header}>
       <div className={styles.left}>
@@ -33,6 +53,15 @@ export function Navbar({ currentTab, onTabChange }: INavbarProps) {
           >
             Ordens de Serviço
           </a>
+          {isAdmin && (
+            <a
+              className={`${styles.tab} ${currentTab === "reports" ? styles.active : ""}`}
+              onClick={() => onTabChange("reports")}
+              tabIndex={0}
+            >
+              Relatórios
+            </a>
+          )}
         </nav>
       </div>
       <div className={styles.right}>

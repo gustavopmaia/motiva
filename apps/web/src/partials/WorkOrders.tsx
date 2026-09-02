@@ -18,6 +18,10 @@ import { fetcher, api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { AddWorkOrderModal, type AvailableWorkOrder } from "@/components/ui/AddWorkOrderModal";
 import { DetailModal, type MapPointDetail } from "@/components/ui/DetailModal";
+import {
+  CompleteWorkOrderModal,
+  type CompleteWorkOrderPayload,
+} from "@/components/ui/CompleteWorkOrderModal";
 import styles from "@/styles/pages/Home/WorkOrders/index.module.css";
 
 interface RouteItem {
@@ -26,6 +30,7 @@ interface RouteItem {
   workOrderStatus: "open" | "in_progress" | "completed";
   priority: "attention" | "urgent" | "critical";
   observation?: string | null;
+  location?: string | null;
   segmentId: string;
   roadName: string;
   kmStart: number;
@@ -63,6 +68,7 @@ interface RoadSegment {
   kmStart: number;
   kmEnd: number;
   mowingType?: string | null;
+  direction?: string | null;
   scoreCurrent?: number | null;
   image?: string | null;
 }
@@ -86,12 +92,14 @@ export function WorkOrdersPartial() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [selectedTeam, setSelectedTeam] = useState<string>("");
 
   const [selectedDetailPoint, setSelectedDetailPoint] = useState<MapPointDetail | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(false);
+  const [completingWorkOrderId, setCompletingWorkOrderId] = useState<string | null>(null);
 
   const payload = useMemo(() => {
     if (!token) return null;
@@ -296,14 +304,38 @@ export function WorkOrdersPartial() {
     }
   };
 
-  const handleCompleteWorkOrder = async (workOrderId: string) => {
+  const validationLabelMap: Record<string, string> = {
+    verified: "Confirmada",
+    suspicious: "Suspeita",
+    missing_exif: "Sem metadados",
+  };
+
+  const handleCompleteWorkOrder = async (
+    workOrderId: string,
+    { photo, lat, lon, capturedAt }: CompleteWorkOrderPayload,
+  ) => {
     setActionError(null);
+    setActionMessage(null);
+
+    const formData = new FormData();
+    formData.append("photo", photo);
+    formData.append("lat", String(lat));
+    formData.append("lon", String(lon));
+    formData.append("capturedAt", capturedAt);
+
     try {
-      await api.post(`/v1/work-orders/${workOrderId}/complete`);
+      const result = await api.post<{ photo: { validationStatus: string } }>(
+        `/v1/work-orders/${workOrderId}/complete`,
+        formData,
+      );
+      const validationLabel =
+        validationLabelMap[result.photo.validationStatus] ?? result.photo.validationStatus;
+      setActionMessage(`Ordem de serviço concluída — evidência: ${validationLabel}.`);
       mutateRoutes();
       mutateWorkOrders();
     } catch {
       setActionError("Falha ao concluir ordem de serviço.");
+      throw new Error("complete failed");
     }
   };
 
@@ -328,6 +360,8 @@ export function WorkOrdersPartial() {
       priority: item.priority,
       team: route.teamName,
       observation: item.observation ?? null,
+      location: item.location ?? null,
+      direction: matchedSeg?.direction ?? null,
       createdAt: route.date,
       image: matchedSeg?.image || null,
     };
@@ -389,6 +423,7 @@ export function WorkOrdersPartial() {
         </div>
 
         {actionError && <p className={styles.messageError}>{actionError}</p>}
+        {actionMessage && <p className={styles.messageSuccess}>{actionMessage}</p>}
 
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
@@ -638,7 +673,7 @@ export function WorkOrdersPartial() {
                                               <button
                                                 className={styles.buttonSuccess}
                                                 onClick={() =>
-                                                  handleCompleteWorkOrder(item.workOrderId)
+                                                  setCompletingWorkOrderId(item.workOrderId)
                                                 }
                                               >
                                                 <CheckCircle size={12} /> Concluir
@@ -688,6 +723,15 @@ export function WorkOrdersPartial() {
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           point={selectedDetailPoint}
+        />
+
+        <CompleteWorkOrderModal
+          isOpen={completingWorkOrderId !== null}
+          onClose={() => setCompletingWorkOrderId(null)}
+          onSubmit={async (payload) => {
+            if (completingWorkOrderId)
+              await handleCompleteWorkOrder(completingWorkOrderId, payload);
+          }}
         />
       </div>
     </div>

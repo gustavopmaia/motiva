@@ -13,6 +13,7 @@ interface RoadSegment {
   kmStart: number;
   kmEnd: number;
   mowingType?: string | null;
+  direction?: string | null;
   scoreCurrent?: number | null;
   scoreDivergent?: boolean;
   image?: string | null;
@@ -38,6 +39,7 @@ interface WorkOrder {
   scoreAtCreation: number;
   team?: string | null;
   observation?: string | null;
+  location?: string | null;
   createdAt: string;
   startedAt?: string | null;
   completedAt?: string | null;
@@ -199,6 +201,7 @@ export function MapPartial() {
             kmStart: Number(matchedSeg.kmStart),
             kmEnd: Number(matchedSeg.kmEnd),
             mowingType: matchedSeg.mowingType,
+            direction: matchedSeg.direction,
             score: alt.score,
             level,
             createdAt: alt.createdAt,
@@ -235,12 +238,14 @@ export function MapPartial() {
             kmStart: Number(matchedSeg.kmStart),
             kmEnd: Number(matchedSeg.kmEnd),
             mowingType: matchedSeg.mowingType,
+            direction: matchedSeg.direction,
             score: wo.scoreAtCreation,
             level: "work_order",
             status: wo.status,
             priority: wo.priority,
             team: wo.team,
             observation: wo.observation,
+            location: wo.location,
             createdAt: wo.createdAt,
             image: matchedSeg.image,
           },
@@ -275,6 +280,7 @@ export function MapPartial() {
             kmStart: Number(seg.kmStart),
             kmEnd: Number(seg.kmEnd),
             mowingType: seg.mowingType,
+            direction: seg.direction,
             score: seg.scoreCurrent,
             level,
             image: seg.image,

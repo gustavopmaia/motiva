@@ -66,11 +66,23 @@ export class RouteItemResponseDto {
   @ApiProperty({ description: "Operational note on the work order.", nullable: true })
   observation!: string | null;
 
+  @ApiProperty({
+    description: "Location within the right-of-way where the service was performed.",
+    nullable: true,
+  })
+  location!: string | null;
+
   @ApiProperty({ description: "Road segment to be serviced." })
   segmentId!: string;
 
   @ApiProperty({ description: "Road the segment belongs to.", example: "BR-101" })
   roadName!: string;
+
+  @ApiProperty({
+    description: "Carriageway direction (sentido/pista) of the segment.",
+    nullable: true,
+  })
+  direction!: string | null;
 
   @ApiProperty({ description: "Segment start kilometer.", example: 10.5 })
   kmStart!: number;

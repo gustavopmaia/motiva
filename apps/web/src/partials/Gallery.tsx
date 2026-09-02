@@ -13,6 +13,7 @@ interface RoadSegment {
   kmStart: number;
   kmEnd: number;
   mowingType: string;
+  direction?: string | null;
   scoreCurrent: number;
   scoreDivergent: boolean;
   image?: string;

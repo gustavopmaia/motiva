@@ -7,10 +7,16 @@ export function BaseLayout() {
 
   const params = new URLSearchParams(location.search);
   const rawTab = params.get("tab");
-  const tab: "map" | "gallery" | "work_orders" =
-    rawTab === "gallery" ? "gallery" : rawTab === "work_orders" ? "work_orders" : "map";
+  const tab: "map" | "gallery" | "work_orders" | "reports" =
+    rawTab === "gallery"
+      ? "gallery"
+      : rawTab === "work_orders"
+        ? "work_orders"
+        : rawTab === "reports"
+          ? "reports"
+          : "map";
 
-  const handleTabChange = (newTab: "map" | "gallery" | "work_orders") => {
+  const handleTabChange = (newTab: "map" | "gallery" | "work_orders" | "reports") => {
     params.set("tab", newTab);
     navigate({ pathname: "/home", search: params.toString() });
   };

@@ -9,8 +9,25 @@ import {
   FileText,
   Calendar,
   ShieldAlert,
+  Compass,
+  Navigation,
 } from "lucide-react";
 import styles from "./index.module.css";
+
+const DIRECTION_LABELS: Record<string, string> = {
+  norte: "Norte",
+  sul: "Sul",
+  leste: "Leste",
+  oeste: "Oeste",
+  unica: "Única",
+};
+
+const LOCATION_LABELS: Record<string, string> = {
+  canteiro_central: "Canteiro central",
+  faixa_1: "Faixa 1",
+  faixa_2: "Faixa 2",
+  lateral: "Lateral",
+};
 
 export interface MapPointDetail {
   id: string;
@@ -26,6 +43,8 @@ export interface MapPointDetail {
   priority?: string | null;
   team?: string | null;
   observation?: string | null;
+  direction?: string | null;
+  location?: string | null;
   createdAt?: string | null;
   image?: string | null;
 }
@@ -177,6 +196,28 @@ export function DetailModal({ isOpen, onClose, point }: DetailModalProps) {
                   <Scissors size={14} /> Tipo de Roçagem
                 </span>
                 <span className={styles.value}>{point.mowingType}</span>
+              </div>
+            )}
+
+            {point.direction && (
+              <div className={styles.gridItem}>
+                <span className={styles.label}>
+                  <Compass size={14} /> Pista
+                </span>
+                <span className={styles.value}>
+                  {DIRECTION_LABELS[point.direction] ?? point.direction}
+                </span>
+              </div>
+            )}
+
+            {point.location && (
+              <div className={styles.gridItem}>
+                <span className={styles.label}>
+                  <Navigation size={14} /> Local
+                </span>
+                <span className={styles.value}>
+                  {LOCATION_LABELS[point.location] ?? point.location}
+                </span>
               </div>
             )}
 

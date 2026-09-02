@@ -24,8 +24,10 @@ type RouteRow = {
   workOrderStatus: string | null;
   priority: string | null;
   observation: string | null;
+  location: string | null;
   segmentId: string | null;
   roadName: string | null;
+  direction: string | null;
   kmStart: string | null;
   kmEnd: string | null;
   scoreCurrent: number | null;
@@ -143,8 +145,8 @@ export class RoutesService {
         r.id, r.team_id AS "teamId", t.name AS "teamName", r.date, r.status,
         r.created_at AS "createdAt",
         ri.work_order_id AS "workOrderId", ri.order_index AS "orderIndex",
-        wo.status AS "workOrderStatus", wo.priority, wo.observation,
-        rs.id AS "segmentId", rs.road_name AS "roadName",
+        wo.status AS "workOrderStatus", wo.priority, wo.observation, wo.location,
+        rs.id AS "segmentId", rs.road_name AS "roadName", rs.direction,
         rs.km_start AS "kmStart", rs.km_end AS "kmEnd", rs.score_current AS "scoreCurrent",
         ST_Y(ST_StartPoint(rs.geometry)) AS lat, ST_X(ST_StartPoint(rs.geometry)) AS lon
       FROM routes r
@@ -187,8 +189,10 @@ function toItem(row: RouteRow): RouteItem {
     workOrderStatus: row.workOrderStatus as WorkOrderStatus,
     priority: row.priority as WorkOrderPriority,
     observation: row.observation,
+    location: row.location,
     segmentId: row.segmentId as string,
     roadName: row.roadName as string,
+    direction: row.direction,
     kmStart: Number(row.kmStart),
     kmEnd: Number(row.kmEnd),
     scoreCurrent: row.scoreCurrent,

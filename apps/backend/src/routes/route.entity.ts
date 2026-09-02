@@ -10,8 +10,10 @@ export type RouteItem = {
   workOrderStatus: WorkOrderStatus;
   priority: WorkOrderPriority;
   observation: string | null;
+  location: string | null;
   segmentId: string;
   roadName: string;
+  direction: string | null;
   kmStart: number;
   kmEnd: number;
   scoreCurrent: number | null;

@@ -126,6 +126,13 @@
   padding: var(--spacing-12);
 }
 
+.messageSuccess {
+  text-align: center;
+  color: var(--color-success);
+  font-size: var(--font-size-base);
+  padding: var(--spacing-4);
+}
+
 .routesList {
   display: flex;
   flex-direction: column;

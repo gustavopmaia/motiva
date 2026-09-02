@@ -21,12 +21,26 @@ async function request<T>(
   body?: unknown,
   headers?: Record<string, string>,
 ): Promise<T> {
-  const response = await client.request<T>({ url: path, method, data: body, headers });
+  // FormData (upload de arquivo) precisa que o axios monte o boundary do
+  // multipart sozinho — forcar um Content-Type aqui (json ou qualquer outro)
+  // quebra o corpo da requisicao.
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  const response = await client.request<T>({
+    url: path,
+    method,
+    data: body,
+    headers: isFormData ? { ...headers, "Content-Type": undefined } : headers,
+  });
   return response.data;
 }
 
 export const fetcher = <T>(path: string, token?: string): Promise<T> =>
   request<T>(path, "GET", undefined, token ? { Authorization: `Bearer ${token}` } : undefined);
+
+function filenameFromContentDisposition(value: string | undefined, fallback: string): string {
+  const match = value?.match(/filename="?([^"]+)"?/);
+  return match?.[1] ?? fallback;
+}
 
 export const api = {
   post: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
@@ -37,4 +51,17 @@ export const api = {
     request<T>(path, "PATCH", body, headers),
   delete: <T>(path: string, headers?: Record<string, string>) =>
     request<T>(path, "DELETE", undefined, headers),
+  download: async (
+    path: string,
+    params?: Record<string, string | undefined>,
+  ): Promise<{ blob: Blob; filename: string }> => {
+    const response = await client.get(path, { params, responseType: "blob" });
+    return {
+      blob: response.data,
+      filename: filenameFromContentDisposition(
+        response.headers["content-disposition"],
+        "relatorio",
+      ),
+    };
+  },
 };
