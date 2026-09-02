@@ -34,6 +34,29 @@ const PRIORITY_WEIGHT: Record<WorkOrderPriority, number> = {
   attention: 2,
 };
 
+// Prazo (em dias) que cada prioridade pode ficar em aberto antes de escalar
+// pro proximo nivel — sem isso, uma OS "urgente" esquecida nunca alcanca uma
+// "critica" recem-criada e fica pra sempre no fim da fila.
+const SLA_DAYS_BY_PRIORITY: Record<WorkOrderPriority, number> = {
+  critical: 2,
+  urgent: 7,
+  attention: 30,
+};
+
+const ESCALATES_TO: Record<WorkOrderPriority, WorkOrderPriority> = {
+  attention: "urgent",
+  urgent: "critical",
+  critical: "critical",
+};
+
+function effectivePriority(workOrder: DispatchWorkOrder, now: Date): WorkOrderPriority {
+  const daysOpen = (now.getTime() - workOrder.createdAt.getTime()) / (24 * 60 * 60 * 1000);
+  if (daysOpen > SLA_DAYS_BY_PRIORITY[workOrder.priority]) {
+    return ESCALATES_TO[workOrder.priority];
+  }
+  return workOrder.priority;
+}
+
 const MAX_ROUTE_SPAN_KM = 30;
 
 type Tx = Parameters<Parameters<DrizzleService["db"]["transaction"]>[0]>[0];
@@ -280,9 +303,11 @@ export function buildGeographicBatches(
   workOrders: DispatchWorkOrder[],
   capacityPerDay: number,
   homeBase?: { lat: number; lon: number },
+  now: Date = new Date(),
 ): DispatchWorkOrder[][] {
   const sorted = [...workOrders].sort((a, b) => {
-    const priority = PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
+    const priority =
+      PRIORITY_WEIGHT[effectivePriority(a, now)] - PRIORITY_WEIGHT[effectivePriority(b, now)];
     if (priority !== 0) return priority;
     return a.createdAt.getTime() - b.createdAt.getTime();
   });

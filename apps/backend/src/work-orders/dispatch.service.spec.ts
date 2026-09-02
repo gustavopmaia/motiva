@@ -29,6 +29,16 @@ const wo = (
   lon: kmStart,
 });
 
+// fixa "now" em BASE_DATE por padrao — sem isso, o escalonamento por SLA
+// (novo) compararia as datas fixas dos testes contra o relogio real, e o
+// resultado mudaria sozinho conforme os dias passam.
+const dispatch = (
+  orders: DispatchWorkOrder[],
+  capacityPerDay: number,
+  homeBase?: { lat: number; lon: number },
+  now: Date = BASE_DATE,
+) => buildGeographicBatches(orders, capacityPerDay, homeBase, now);
+
 const team = (overrides: Partial<Team> = {}): Team => ({
   id: "t-1",
   name: "North crew",
@@ -44,13 +54,13 @@ const team = (overrides: Partial<Team> = {}): Team => ({
 
 describe("buildGeographicBatches", () => {
   it("não cria lote algum sem ordens de serviço", () => {
-    expect(buildGeographicBatches([], 3)).toEqual([]);
+    expect(dispatch([], 3)).toEqual([]);
   });
 
   it("respeita a capacidade diária, criando um lote por dia", () => {
     const orders = [wo("a", 0, 1), wo("b", 2, 3), wo("c", 4, 5), wo("d", 6, 7)];
 
-    const batches = buildGeographicBatches(orders, 2);
+    const batches = dispatch(orders, 2);
 
     expect(batches.map((b) => b.length)).toEqual([2, 2]);
   });
@@ -63,7 +73,7 @@ describe("buildGeographicBatches", () => {
       wo("urgent-nova", 90, 91, "urgent"),
     ];
 
-    const batches = buildGeographicBatches(orders, 1);
+    const batches = dispatch(orders, 1);
 
     expect(batches.map((b) => b[0].id)).toEqual([
       "critical-nova",
@@ -78,13 +88,13 @@ describe("buildGeographicBatches", () => {
       wo("antiga", 60, 61, "urgent", new Date("2026-08-01T12:00:00")),
     ];
 
-    const batches = buildGeographicBatches(orders, 1);
+    const batches = dispatch(orders, 1);
 
     expect(batches.map((b) => b[0].id)).toEqual(["antiga", "nova"]);
   });
 
   it("não agrupa ordens que ultrapassam o alcance de 30 km", () => {
-    const batches = buildGeographicBatches([wo("perto", 0, 1), wo("longe", 40, 41)], 5);
+    const batches = dispatch([wo("perto", 0, 1), wo("longe", 40, 41)], 5);
 
     expect(batches).toHaveLength(2);
     expect(batches[0].map((b) => b.id)).toEqual(["perto"]);
@@ -92,7 +102,7 @@ describe("buildGeographicBatches", () => {
   });
 
   it("agrupa ordens exatamente no limite de 30 km", () => {
-    const batches = buildGeographicBatches([wo("inicio", 0, 0), wo("limite", 30, 30)], 5);
+    const batches = dispatch([wo("inicio", 0, 0), wo("limite", 30, 30)], 5);
 
     expect(batches).toHaveLength(1);
     expect(batches[0].map((b) => b.id)).toEqual(["inicio", "limite"]);
@@ -101,7 +111,7 @@ describe("buildGeographicBatches", () => {
   it("ordena cada lote por km para a equipe percorrer em sequência", () => {
     const orders = [wo("km20", 20, 21), wo("km5", 5, 6), wo("km12", 12, 13)];
 
-    const [batch] = buildGeographicBatches(orders, 3);
+    const [batch] = dispatch(orders, 3);
 
     expect(batch.map((b) => b.id)).toEqual(["km5", "km12", "km20"]);
   });
@@ -109,7 +119,7 @@ describe("buildGeographicBatches", () => {
   it("nunca coloca a mesma ordem em dois lotes", () => {
     const orders = [wo("a", 0, 1), wo("b", 1, 2), wo("c", 80, 81), wo("d", 81, 82)];
 
-    const batches = buildGeographicBatches(orders, 2);
+    const batches = dispatch(orders, 2);
     const ids = batches.flat().map((b) => b.id);
 
     expect(new Set(ids).size).toBe(ids.length);
@@ -119,7 +129,7 @@ describe("buildGeographicBatches", () => {
   it("sem base informada, mantem ordem crescente de km (compatibilidade)", () => {
     const orders = [wo("km20", 20, 21), wo("km5", 5, 6)];
 
-    const [batch] = buildGeographicBatches(orders, 2);
+    const [batch] = dispatch(orders, 2);
 
     expect(batch.map((b) => b.id)).toEqual(["km5", "km20"]);
   });
@@ -127,7 +137,7 @@ describe("buildGeographicBatches", () => {
   it("comeca a rota pela ponta mais perto da base do time", () => {
     const orders = [wo("km5", 5, 6), wo("km20", 20, 21)];
 
-    const [batch] = buildGeographicBatches(orders, 2, { lat: 0, lon: 25 });
+    const [batch] = dispatch(orders, 2, { lat: 0, lon: 25 });
 
     expect(batch.map((b) => b.id)).toEqual(["km20", "km5"]);
   });
@@ -135,9 +145,42 @@ describe("buildGeographicBatches", () => {
   it("mantem ordem crescente quando a base ja esta perto do inicio", () => {
     const orders = [wo("km5", 5, 6), wo("km20", 20, 21)];
 
-    const [batch] = buildGeographicBatches(orders, 2, { lat: 0, lon: 0 });
+    const [batch] = dispatch(orders, 2, { lat: 0, lon: 0 });
 
     expect(batch.map((b) => b.id)).toEqual(["km5", "km20"]);
+  });
+
+  it("escala a prioridade quando estoura o prazo da propria prioridade", () => {
+    // capacidade 1: cada OS vira um lote/dia proprio, entao a ordem dos
+    // lotes revela a prioridade escolhida — dentro de um mesmo lote a
+    // ordem final e sempre por km (pra rota fazer sentido), nao por
+    // prioridade, entao isso teria que ser testado por dia, nao por item.
+    const now = new Date("2026-08-20T00:00:00");
+    const orders = [
+      // 1 dia em aberto, dentro do prazo de 7 dias do urgente.
+      wo("urgent-fresca", 20, 21, "urgent", new Date("2026-08-19T00:00:00")),
+      // 41 dias em aberto, estourou o prazo de 30 dias da atencao -> vira
+      // urgente tambem; empatada com a fresca, vence por ser mais antiga.
+      wo("attention-vencida", 0, 1, "attention", new Date("2026-07-10T00:00:00")),
+    ];
+
+    const batches = dispatch(orders, 1, undefined, now);
+
+    expect(batches.map((b) => b[0].id)).toEqual(["attention-vencida", "urgent-fresca"]);
+  });
+
+  it("nao escala quando ainda esta dentro do prazo da prioridade", () => {
+    const now = new Date("2026-08-10T00:00:00");
+    const orders = [
+      wo("urgent-fresca", 20, 21, "urgent", new Date("2026-08-09T00:00:00")),
+      // 5 dias em aberto, bem dentro dos 30 dias da atencao — nao escala,
+      // continua atras da urgente.
+      wo("attention-recente", 0, 1, "attention", new Date("2026-08-05T00:00:00")),
+    ];
+
+    const batches = dispatch(orders, 1, undefined, now);
+
+    expect(batches.map((b) => b[0].id)).toEqual(["urgent-fresca", "attention-recente"]);
   });
 });
 
