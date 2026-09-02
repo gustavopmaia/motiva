@@ -51,13 +51,25 @@ describeDb("routes against a real database", () => {
       lat: -23.4162,
       lon: -46.7841,
     });
-    await insertSegment(drizzle, { id: SEGMENT_B, roadName: "BR-101", kmStart: 12, kmEnd: 13 });
+    await insertSegment(drizzle, {
+      id: SEGMENT_B,
+      roadName: "BR-101",
+      kmStart: 12,
+      kmEnd: 13,
+      lat: -23.42,
+      lon: -46.79,
+    });
     await insertTeam(drizzle, {
       id: TEAM_NORTE,
       name: "Equipe Norte",
       roadName: "BR-101",
       kmStart: 0,
       kmEnd: 100,
+      // perto do segmento A (km 10): a rota deve comecar por ele, nao pelo
+      // km 12 — sem coordenada explicita, tanto o time quanto um segmento
+      // sem lat/lon cairiam no default (0,0) e colidiriam por coincidencia.
+      baseLat: -23.415,
+      baseLng: -46.783,
       capacityPerDay: 5,
     });
     await insertAlert(drizzle, { id: ALERT_A, segmentId: SEGMENT_A, level: "urgent" });

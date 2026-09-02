@@ -69,6 +69,8 @@ export async function insertTeam(
     roadName: string;
     kmStart: number;
     kmEnd: number;
+    baseLat?: number;
+    baseLng?: number;
     capacityPerDay?: number;
     active?: boolean;
   },
@@ -76,8 +78,8 @@ export async function insertTeam(
   await drizzle.db.execute(sql`
     INSERT INTO teams (id, name, base_lat, base_lng, road_name, km_start, km_end, capacity_per_day, active)
     VALUES (
-      ${team.id}, ${team.name}, 0, 0, ${team.roadName}, ${team.kmStart}, ${team.kmEnd},
-      ${team.capacityPerDay ?? 3}, ${team.active ?? true}
+      ${team.id}, ${team.name}, ${team.baseLat ?? 0}, ${team.baseLng ?? 0}, ${team.roadName},
+      ${team.kmStart}, ${team.kmEnd}, ${team.capacityPerDay ?? 3}, ${team.active ?? true}
     )
   `);
 }
