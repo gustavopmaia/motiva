@@ -428,7 +428,7 @@ export function MapPartial() {
         style={{
           position: "absolute",
           top: "16px",
-          left: "16px",
+          right: "16px",
           zIndex: 1000,
           backgroundColor: "var(--color-surface)",
           borderRadius: "12px",
