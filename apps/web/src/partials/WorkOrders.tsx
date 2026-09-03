@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import useSWRImmutable from "swr/immutable";
 import { jwtDecode } from "jwt-decode";
 import {
@@ -84,6 +85,12 @@ function getTodayString(): string {
   const month = String(today.getMonth() + 1).padStart(2, "0");
   const day = String(today.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+// sem resposta do servidor = provável falta de rede: o service worker
+// enfileira a requisição (workbox background sync) e reenvia sozinho depois
+function isQueuedOffline(err: unknown): boolean {
+  return axios.isAxiosError(err) && !err.response;
 }
 
 export function WorkOrdersPartial() {
@@ -291,15 +298,37 @@ export function WorkOrdersPartial() {
     handleReorderItems(selectedRouteId, currentIds);
   };
 
+  const applyOptimisticStatus = (
+    workOrderId: string,
+    workOrderStatus: RouteItem["workOrderStatus"],
+  ) => {
+    mutateRoutes(
+      (current) =>
+        current?.map((route) => ({
+          ...route,
+          items: route.items.map((item) =>
+            item.workOrderId === workOrderId ? { ...item, workOrderStatus } : item,
+          ),
+        })),
+      { revalidate: false },
+    );
+  };
+
   const handleStartWorkOrder = async (workOrderId: string) => {
     setActionError(null);
+    setActionMessage(null);
     try {
       await api.patch(`/v1/work-orders/${workOrderId}`, {
         status: "in_progress",
       });
       mutateRoutes();
       mutateWorkOrders();
-    } catch {
+    } catch (err) {
+      if (isQueuedOffline(err)) {
+        applyOptimisticStatus(workOrderId, "in_progress");
+        setActionMessage("Sem conexão: início registrado, será sincronizado automaticamente.");
+        return;
+      }
       setActionError("Falha ao iniciar ordem de serviço.");
     }
   };
@@ -333,7 +362,12 @@ export function WorkOrdersPartial() {
       setActionMessage(`Ordem de serviço concluída — evidência: ${validationLabel}.`);
       mutateRoutes();
       mutateWorkOrders();
-    } catch {
+    } catch (err) {
+      if (isQueuedOffline(err)) {
+        applyOptimisticStatus(workOrderId, "completed");
+        setActionMessage("Sem conexão: conclusão registrada, será sincronizada automaticamente.");
+        return;
+      }
       setActionError("Falha ao concluir ordem de serviço.");
       throw new Error("complete failed");
     }

@@ -97,10 +97,11 @@ export function CompleteWorkOrderModal({ isOpen, onClose, onSubmit }: CompleteWo
 
           <label className={styles.fileLabel}>
             <Camera size={18} />
-            {photo ? photo.name : "Selecionar foto (JPEG)"}
+            {photo ? photo.name : "Tirar foto"}
             <input
               type="file"
               accept="image/jpeg"
+              capture="environment"
               className={styles.fileInput}
               onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
             />

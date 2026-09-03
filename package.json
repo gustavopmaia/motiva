@@ -22,7 +22,8 @@
     "esbuild": "^0.25.0",
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.0"
-    }
+    },
+    "vite": "^7.3.2"
   },
   "lint-staged": {
     "**/*.{ts,tsx}": [
