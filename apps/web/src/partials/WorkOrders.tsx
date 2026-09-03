@@ -127,12 +127,32 @@ export function WorkOrdersPartial() {
     return ["/v1/routes", token];
   }, [token, selectedDate]);
 
+  const routesCacheKey = `motiva:routes:${selectedDate}`;
+
+  const routesFallback = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(routesCacheKey);
+      return raw ? (JSON.parse(raw) as Route[]) : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [routesCacheKey]);
+
   const {
     data: routes,
     error: routesError,
     isLoading: routesLoading,
     mutate: mutateRoutes,
-  } = useSWRImmutable<Route[]>(routeEndpoint, ([url, t]) => fetcher<Route[]>(url, t as string));
+  } = useSWRImmutable<Route[]>(routeEndpoint, ([url, t]) => fetcher<Route[]>(url, t as string), {
+    fallbackData: routesFallback,
+    onSuccess: (data) => {
+      try {
+        localStorage.setItem(routesCacheKey, JSON.stringify(data));
+      } catch {
+        // localStorage indisponível (modo privado etc.): sem persistência, sem quebrar a tela
+      }
+    },
+  });
 
   const { data: allWorkOrders, mutate: mutateWorkOrders } = useSWRImmutable<WorkOrder[]>(
     token && isAdmin ? ["/v1/work-orders", token] : null,
