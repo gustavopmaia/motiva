@@ -17,6 +17,7 @@ interface CompleteWorkOrderModalProps {
 
 export function CompleteWorkOrderModal({ isOpen, onClose, onSubmit }: CompleteWorkOrderModalProps) {
   const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [lat, setLat] = useState<string>("");
   const [lon, setLon] = useState<string>("");
   const [geoDenied, setGeoDenied] = useState(false);
@@ -27,6 +28,10 @@ export function CompleteWorkOrderModal({ isOpen, onClose, onSubmit }: CompleteWo
     if (!isOpen) return;
 
     setPhoto(null);
+    setPhotoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     setLat("");
     setLon("");
     setGeoDenied(false);
@@ -52,6 +57,12 @@ export function CompleteWorkOrderModal({ isOpen, onClose, onSubmit }: CompleteWo
     if (isOpen) window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    };
+  }, [photoPreviewUrl]);
 
   if (!isOpen) return null;
 
@@ -103,9 +114,20 @@ export function CompleteWorkOrderModal({ isOpen, onClose, onSubmit }: CompleteWo
               accept="image/jpeg"
               capture="environment"
               className={styles.fileInput}
-              onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                setPhoto(file);
+                setPhotoPreviewUrl((prev) => {
+                  if (prev) URL.revokeObjectURL(prev);
+                  return file ? URL.createObjectURL(file) : null;
+                });
+              }}
             />
           </label>
+
+          {photoPreviewUrl && (
+            <img src={photoPreviewUrl} alt="Prévia da foto" className={styles.photoPreview} />
+          )}
 
           {geoDenied && (
             <div className={styles.coordsRow}>

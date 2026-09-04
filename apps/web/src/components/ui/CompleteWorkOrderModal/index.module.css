@@ -97,6 +97,15 @@
   overflow: hidden;
 }
 
+.photoPreview {
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-background-alt);
+}
+
 .coordsRow {
   display: flex;
   gap: var(--spacing-3);
