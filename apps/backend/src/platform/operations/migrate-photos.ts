@@ -25,7 +25,18 @@ async function main(): Promise<void> {
         if (!rows.length) break;
         for (const row of rows) {
           if (apply) {
-            const source = await local.get(namespace as PhotoNamespace, row.photo_path);
+            // Registro sem arquivo no disco legado (ex.: gravado antes de existir
+            // volume persistente) nao tem o que copiar: reporta e segue.
+            const source = await local
+              .get(namespace as PhotoNamespace, row.photo_path)
+              .catch((error: NodeJS.ErrnoException) => {
+                if (error.code === "ENOENT") return undefined;
+                throw error;
+              });
+            if (!source) {
+              process.stdout.write(JSON.stringify({ namespace, id: row.id, missing: true }) + "\n");
+              continue;
+            }
             await remote.put(namespace, row.photo_path, source);
             const copied = await remote.get(namespace, row.photo_path);
             if (digest(source) !== digest(copied))
