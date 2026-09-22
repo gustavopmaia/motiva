@@ -1,0 +1,40 @@
+name: motiva-tests
+services:
+  mqtt:
+    image: eclipse-mosquitto:2
+    ports: ["127.0.0.1:51883:1883"]
+    volumes:
+      - ./apps/backend/test-fixtures/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "127.0.0.1", "-t", "test/health", "-m", "ok"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  postgres:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: motiva_test
+    ports: ["127.0.0.1:55432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d motiva_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:56379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  object-store:
+    # Fixed disposable test fixture; production storage is supplied separately.
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: motiva-test
+      MINIO_ROOT_PASSWORD: motiva-test-secret
+    ports: ["127.0.0.1:59000:9000"]

@@ -1,3 +1,4 @@
+import { runs } from "../bootstrap/runtime-role";
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { WorkOrdersProcessor } from "./work-orders.processor";
@@ -15,19 +16,18 @@ import { WorkOrderPhotosService } from "../work-order-photos/work-order-photos.s
 @Module({
   imports: [
     DatabaseModule,
-    AuthModule,
+    ...(runs("api") ? [AuthModule] : []),
     TeamsModule,
     AlertsModule,
     BullModule.registerQueue({ name: ALERT_EVENTS_QUEUE }),
     BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE }),
   ],
   providers: [
-    WorkOrdersProcessor,
-    DispatchCronService,
+    ...(runs("domain") ? [WorkOrdersProcessor, DispatchCronService] : []),
     DispatchService,
     WorkOrdersService,
-    WorkOrderPhotosService,
+    ...(runs("api") ? [WorkOrderPhotosService] : []),
   ],
-  controllers: [WorkOrdersController],
+  controllers: runs("api") ? [WorkOrdersController] : [],
 })
 export class WorkOrdersModule {}

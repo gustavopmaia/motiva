@@ -30,7 +30,7 @@ COPY --from=builder /opt/venv /opt/venv
 
 # Ordem por frequencia de mudanca: modelo (raro) antes do codigo (frequente).
 COPY apps/classifier/model model
-COPY apps/classifier/main.py .
+COPY apps/classifier/main.py apps/classifier/policy.py ./
 
 RUN useradd --system --uid 10001 appuser
 USER appuser
@@ -41,4 +41,4 @@ EXPOSE 8000
 # 2GB de limite no pod, mais de um worker estoura o limite e vira OOMKill.
 # --no-access-log: o log de acesso sai pelo middleware em main.py (JSON
 # estruturado); sem isso o Uvicorn duplicaria a mesma requisicao em texto puro.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-access-log"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--limit-concurrency", "16", "--timeout-keep-alive", "5", "--no-access-log"]

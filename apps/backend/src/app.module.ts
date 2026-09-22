@@ -1,11 +1,15 @@
+import { OperationContextInterceptor } from "./common/operation-context.interceptor";
+import { runs } from "./bootstrap/runtime-role";
+import { OutboxPublisher } from "./platform/messaging/outbox-publisher";
+import { StorageModule } from "./platform/storage/object-storage";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_INTERCEPTOR } from "@nestjs/core";
-import { BullModule, getQueueToken } from "@nestjs/bullmq";
+import { BullModule } from "@nestjs/bullmq";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
-import { Queue } from "bullmq";
+import { ApplicationRedis, ApplicationRedisModule } from "./platform/redis/redis.module";
 import { AuthModule } from "./auth/auth.module";
 import { ReadingsModule } from "./readings/readings.module";
 import { AlertsModule } from "./alerts/alerts.module";
@@ -19,7 +23,11 @@ import { MetricsController, MetricsInterceptor } from "./metrics/metrics";
 import { validateEnv } from "./common/env";
 import { DatabaseModule } from "./database/database.module";
 import { RedisThrottlerStorage } from "./common/redis-throttler.storage";
-import { ALERT_EVENTS_QUEUE, SEGMENT_EVENTS_QUEUE } from "./common/queues";
+import {
+  ALERT_EVENTS_QUEUE,
+  SEGMENT_EVENTS_QUEUE,
+  PHOTO_CLASSIFICATION_QUEUE,
+} from "./common/queues";
 import { createLoggerConfig } from "./common/logger.config";
 
 @Module({
@@ -36,31 +44,38 @@ import { createLoggerConfig } from "./common/logger.config";
     BullModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
         connection: { url: config.getOrThrow<string>("REDIS_URL") },
+        prefix: config.get<string>("QUEUE_PREFIX") ?? "bull",
       }),
       inject: [ConfigService],
     }),
     ScheduleModule.forRoot(),
     DatabaseModule,
+    ...(runs("api") || runs("images") ? [StorageModule] : []),
     BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE }),
     BullModule.registerQueue({ name: ALERT_EVENTS_QUEUE }),
-    ThrottlerModule.forRootAsync({
-      imports: [BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE })],
-      inject: [getQueueToken(SEGMENT_EVENTS_QUEUE)],
-      useFactory: (queue: Queue) => ({
-        throttlers: [{ ttl: 60_000, limit: 5 }],
-        storage: new RedisThrottlerStorage(queue),
-      }),
-    }),
-    AuthModule,
-    ReadingsModule,
-    AlertsModule,
-    WorkOrdersModule,
-    RoadSegmentsModule,
-    RoutesModule,
-    VehicleCapturesModule,
-    ReportsModule,
+    BullModule.registerQueue({ name: PHOTO_CLASSIFICATION_QUEUE }),
+    ...(runs("api")
+      ? [
+          ThrottlerModule.forRootAsync({
+            imports: [ApplicationRedisModule],
+            inject: [ApplicationRedis],
+            useFactory: (redis: ApplicationRedis) => ({
+              throttlers: [{ ttl: 60_000, limit: 5 }],
+              storage: new RedisThrottlerStorage(redis.client),
+            }),
+          }),
+        ]
+      : []),
+    ...(runs("api") ? [AuthModule, RoadSegmentsModule, RoutesModule, ReportsModule] : []),
+    ...(runs("api") || runs("domain") || runs("mqtt") || runs("images") ? [ReadingsModule] : []),
+    ...(runs("api") || runs("domain") ? [AlertsModule, WorkOrdersModule] : []),
+    ...(runs("api") || runs("images") ? [VehicleCapturesModule] : []),
   ],
   controllers: [HealthController, MetricsController],
-  providers: [{ provide: APP_INTERCEPTOR, useClass: MetricsInterceptor }],
+  providers: [
+    ...(runs("domain") || runs("images") ? [OutboxPublisher] : []),
+    { provide: APP_INTERCEPTOR, useClass: OperationContextInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
+  ],
 })
 export class AppModule {}

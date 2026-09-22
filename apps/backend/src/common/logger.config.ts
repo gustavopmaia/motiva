@@ -10,13 +10,24 @@ export function createLoggerConfig(config: ConfigService): Params {
     pinoHttp: {
       level: config.get<string>("LOG_LEVEL") ?? "info",
       timestamp: stdTimeFunctions.isoTime,
+      redact: {
+        paths: [
+          "req.headers.authorization",
+          'req.headers["x-api-key"]',
+          "req.headers.cookie",
+          'res.headers["set-cookie"]',
+        ],
+        censor: "[REDACTED]",
+      },
       // Respeita x-request-id de entrada (ex.: veio de um proxy/gateway
       // upstream); gera um novo so quando a requisicao chega sem nenhum,
       // e devolve o mesmo valor no header de resposta para correlacionar
       // ponta a ponta.
       genReqId: (req, res) => {
         const existing = req.headers["x-request-id"];
-        const id = (Array.isArray(existing) ? existing[0] : existing) ?? randomUUID();
+        const candidate = Array.isArray(existing) ? existing[0] : existing;
+        const id =
+          candidate && /^[a-zA-Z0-9_.:-]{1,128}$/.test(candidate) ? candidate : randomUUID();
         res.setHeader("x-request-id", id);
         return id;
       },

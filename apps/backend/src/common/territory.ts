@@ -1,10 +1,7 @@
 import { sql, SQL } from "drizzle-orm";
 
-export type Territory = {
-  roadName: string;
-  kmStart: number;
-  kmEnd: number;
-};
+import type { Territory } from "../shared/territory";
+export type { Territory } from "../shared/territory";
 
 export function territoryOverlap(territory: Territory, table = "road_segments"): SQL {
   const alias = sql.raw(table);

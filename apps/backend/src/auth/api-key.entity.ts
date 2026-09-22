@@ -5,6 +5,7 @@ export type ApiKeySource = (typeof API_KEY_SOURCES)[number];
 export type ApiKeyRequest = {
   headers: Record<string, unknown>;
   apiKeySource: ApiKeySource;
+  apiKeyId?: string;
 };
 
 export type ApiKey = {

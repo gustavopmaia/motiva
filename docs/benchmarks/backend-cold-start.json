@@ -1,0 +1,152 @@
+{
+  "at": "2026-09-14T12:29:01.372Z",
+  "node": "v24.14.0",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5",
+    "logicalCpus": 10,
+    "memoryGiB": 16
+  },
+  "note": "Local synthetic experiment; Node processes share one host. PostGIS and Redis run in Docker. Measures ingestion and OS generation, not production SLO, image inference, or route planning capacity.",
+  "scenarios": [
+    {
+      "distribution": "distributed",
+      "apiReplicas": 1,
+      "domainReplicas": 1,
+      "segments": 64,
+      "requestCount": 600,
+      "concurrency": 32,
+      "databasePoolPerProcess": 5,
+      "ingestionSeconds": 1.03,
+      "requestsPerSecond": 584.74,
+      "latencyMs": {
+        "p50": 46.09,
+        "p95": 159.15,
+        "p99": 198.45
+      },
+      "endToEndSeconds": 8.01,
+      "statuses": {
+        "201": 600
+      },
+      "readings": 600,
+      "orders": 64,
+      "duplicateOrders": 0
+    },
+    {
+      "distribution": "distributed",
+      "apiReplicas": 2,
+      "domainReplicas": 2,
+      "segments": 64,
+      "requestCount": 600,
+      "concurrency": 32,
+      "databasePoolPerProcess": 5,
+      "ingestionSeconds": 1.08,
+      "requestsPerSecond": 553.67,
+      "latencyMs": {
+        "p50": 48.18,
+        "p95": 260.73,
+        "p99": 307.58
+      },
+      "endToEndSeconds": 4.05,
+      "statuses": {
+        "201": 600
+      },
+      "readings": 600,
+      "orders": 64,
+      "duplicateOrders": 0
+    },
+    {
+      "distribution": "distributed",
+      "apiReplicas": 4,
+      "domainReplicas": 4,
+      "segments": 64,
+      "requestCount": 600,
+      "concurrency": 32,
+      "databasePoolPerProcess": 5,
+      "ingestionSeconds": 1.13,
+      "requestsPerSecond": 529.65,
+      "latencyMs": {
+        "p50": 34.35,
+        "p95": 349.66,
+        "p99": 501.78
+      },
+      "endToEndSeconds": 2.37,
+      "statuses": {
+        "201": 600
+      },
+      "readings": 600,
+      "orders": 64,
+      "duplicateOrders": 0
+    },
+    {
+      "distribution": "single-segment",
+      "apiReplicas": 1,
+      "domainReplicas": 1,
+      "segments": 1,
+      "requestCount": 600,
+      "concurrency": 32,
+      "databasePoolPerProcess": 5,
+      "ingestionSeconds": 1.9,
+      "requestsPerSecond": 315.11,
+      "latencyMs": {
+        "p50": 88.9,
+        "p95": 172.99,
+        "p99": 284.89
+      },
+      "endToEndSeconds": 2.01,
+      "statuses": {
+        "201": 600
+      },
+      "readings": 600,
+      "orders": 1,
+      "duplicateOrders": 0
+    },
+    {
+      "distribution": "single-segment",
+      "apiReplicas": 2,
+      "domainReplicas": 2,
+      "segments": 1,
+      "requestCount": 600,
+      "concurrency": 32,
+      "databasePoolPerProcess": 5,
+      "ingestionSeconds": 2.14,
+      "requestsPerSecond": 279.76,
+      "latencyMs": {
+        "p50": 96.21,
+        "p95": 241.23,
+        "p99": 410.84
+      },
+      "endToEndSeconds": 2.15,
+      "statuses": {
+        "201": 600
+      },
+      "readings": 600,
+      "orders": 1,
+      "duplicateOrders": 0
+    },
+    {
+      "distribution": "single-segment",
+      "apiReplicas": 4,
+      "domainReplicas": 4,
+      "segments": 1,
+      "requestCount": 600,
+      "concurrency": 32,
+      "databasePoolPerProcess": 5,
+      "ingestionSeconds": 2.74,
+      "requestsPerSecond": 219.12,
+      "latencyMs": {
+        "p50": 120.6,
+        "p95": 400.89,
+        "p99": 716.36
+      },
+      "endToEndSeconds": 2.74,
+      "statuses": {
+        "201": 600
+      },
+      "readings": 600,
+      "orders": 1,
+      "duplicateOrders": 0
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { SegmentLocator } from "../road-segments/segment-locator";
 import { sql } from "drizzle-orm";
 import { DrizzleService } from "../database/drizzle.service";
 import { ReadingsService } from "./readings.service";
@@ -15,7 +16,6 @@ describeDb("readings against a real PostGIS database", () => {
   let drizzle: DrizzleService;
   let readings: ReadingsService;
   let fusion: FusionService;
-  const queue = { add: jest.fn() };
 
   beforeAll(async () => {
     drizzle = createTestDrizzle();
@@ -28,9 +28,12 @@ describeDb("readings against a real PostGIS database", () => {
 
   beforeEach(async () => {
     await truncateAll(drizzle);
-    queue.add.mockReset();
-    fusion = new FusionService(drizzle, queue as never);
-    readings = new ReadingsService(drizzle, fusion);
+    fusion = new FusionService(drizzle);
+    readings = new ReadingsService(
+      drizzle,
+      fusion,
+      new SegmentLocator(drizzle, { get: () => 500 } as never),
+    );
   });
 
   describe("segment matching with ST_Distance", () => {
@@ -131,16 +134,99 @@ describeDb("readings against a real PostGIS database", () => {
       expect(row.score_divergent).toBe(true);
     });
 
+    it("excludes old measurements after an intervention", async () => {
+      await addReading("iot", 90, 1);
+      await drizzle.db.execute(
+        sql`UPDATE road_segments SET last_intervention_at = clock_timestamp() - interval '30 minutes' WHERE id = ${segmentId}`,
+      );
+      await addReading("satellite", 10, 0);
+      await fusion.updateScoreForSegment(segmentId, "after-maintenance");
+      const [row] = await drizzle.db.execute<{ score_current: number }>(
+        sql`SELECT score_current FROM road_segments WHERE id = ${segmentId}`,
+      );
+      expect(row.score_current).toBe(10);
+    });
+
+    it("deduplicates simultaneous producer events", async () => {
+      const input = {
+        source: "iot" as const,
+        lat: -23.55,
+        lon: -46.63,
+        heightCm: 60,
+        originKey: "sensor:reading-1",
+      };
+      const results = await Promise.all([
+        readings.create(input),
+        readings.create(input),
+        readings.create(input),
+      ]);
+      expect(new Set(results.map((row) => row.id)).size).toBe(1);
+      expect(await drizzle.db.execute(sql`SELECT id FROM readings`)).toHaveLength(1);
+      expect(await drizzle.db.execute(sql`SELECT id FROM outbox_events`)).toHaveLength(1);
+    });
+
+    it("rejects conflicting events even when both heights produce the same clamped score", async () => {
+      const input = {
+        source: "iot" as const,
+        lat: -23.55,
+        lon: -46.63,
+        heightCm: 100,
+        originKey: "sensor:reading-1",
+      };
+      await readings.create(input);
+      await expect(readings.create({ ...input, heightCm: 200 })).rejects.toThrow(
+        "different content",
+      );
+    });
+
+    it("rejects future observations and ignores legacy future readings during fusion", async () => {
+      await expect(
+        readings.create({
+          source: "iot",
+          lat: -23.55,
+          lon: -46.63,
+          heightCm: 70,
+          observedAt: new Date(Date.now() + 600_000),
+        }),
+      ).rejects.toThrow("5 minutes");
+      await addReading("iot", 90, -48);
+      await addReading("satellite", 20);
+      await fusion.updateScoreForSegment(segmentId, "legacy-future");
+      const [state] = await drizzle.db.execute<{ score_current: number }>(
+        sql`SELECT score_current FROM road_segments WHERE id = ${segmentId}`,
+      );
+      expect(state.score_current).toBe(20);
+    });
+
+    it("keeps contributor provenance and canonical producer metadata", async () => {
+      const input = {
+        source: "iot" as const,
+        lat: -23.55,
+        lon: -46.63,
+        heightCm: 60,
+        originKey: "sensor:canonical",
+        metadata: { a: 1, b: { x: 2, y: 3 } },
+      };
+      const first = await readings.create(input);
+      const second = await readings.create({ ...input, metadata: { b: { y: 3, x: 2 }, a: 1 } });
+      expect(second.id).toBe(first.id);
+      const [state] = await drizzle.db.execute<{
+        risk_contributions: { readingId: string; source: string }[];
+      }>(sql`SELECT risk_contributions FROM road_segments WHERE id = ${segmentId}`);
+      expect(state.risk_contributions).toEqual([
+        expect.objectContaining({ readingId: first.id, source: "iot" }),
+      ]);
+    });
+
     it("enfileira job ao cruzar threshold", async () => {
       await addReading("iot", 90, 1);
 
       await fusion.updateScoreForSegment(segmentId, "r-1");
 
-      expect(queue.add).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ level: "critical", segmentId }),
-        expect.objectContaining({ jobId: expect.any(String) }),
+      const [event] = await drizzle.db.execute<{ payload: { level: string; segmentId: string } }>(
+        sql`SELECT payload FROM outbox_events WHERE type = 'segment.risk-level-changed'`,
       );
+      expect(event.payload).toMatchObject({ level: "critical", segmentId });
     });
   });
 });

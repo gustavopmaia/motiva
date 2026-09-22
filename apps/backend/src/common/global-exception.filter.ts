@@ -23,6 +23,8 @@ type HttpRequest = {
 };
 
 type HttpResponse = {
+  headersSent?: boolean;
+  destroy?(): void;
   status(statusCode: number): {
     json(body: ApiErrorResponse): void;
   };
@@ -69,6 +71,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       );
     }
 
+    if (response.headersSent) {
+      response.destroy?.();
+      return;
+    }
     response.status(status).json(body);
   }
 

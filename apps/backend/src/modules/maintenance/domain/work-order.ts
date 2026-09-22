@@ -1,0 +1,51 @@
+export const WORK_ORDER_STATUSES = ["open", "in_progress", "completed"] as const;
+export const WORK_ORDER_PRIORITIES = ["attention", "urgent", "critical"] as const;
+
+export const PATCHABLE_WORK_ORDER_STATUSES = ["open", "in_progress"] as const;
+
+// vocabulario da propria clausula ARTESP (Anexo 06): "local (ex.: canteiro
+// central, faixa 1, lateral)" no apontamento diario de servico executado.
+export const WORK_ORDER_LOCATIONS = ["canteiro_central", "faixa_1", "faixa_2", "lateral"] as const;
+
+export type WorkOrderStatus = (typeof WORK_ORDER_STATUSES)[number];
+export type WorkOrderPriority = (typeof WORK_ORDER_PRIORITIES)[number];
+export type WorkOrderLocation = (typeof WORK_ORDER_LOCATIONS)[number];
+
+export type WorkOrder = {
+  id: string;
+  segmentId: string;
+  alertId: string;
+  status: WorkOrderStatus;
+  priority: WorkOrderPriority;
+  scoreAtCreation: number;
+  team: string | null;
+  observation: string | null;
+  location: WorkOrderLocation | null;
+  createdAt: Date;
+  startedAt: Date | null;
+  completedAt: Date | null;
+};
+
+export type WorkOrderActor = { role: "manager" | "field" | "system"; sub: string; email?: string };
+export const SYSTEM_ACTOR: WorkOrderActor = { role: "system", sub: "maintenance-worker" };
+export type WorkOrderFilters = {
+  status?: WorkOrderStatus;
+  team?: string;
+};
+
+export type CreateWorkOrderInput = {
+  segmentId: string;
+  alertId: string;
+  priority: WorkOrderPriority;
+  scoreAtCreation: number;
+  team?: string | null;
+  observation?: string | null;
+  location?: string | null;
+};
+
+export type UpdateWorkOrderInput = {
+  status?: WorkOrderStatus;
+  team?: string | null;
+  observation?: string | null;
+  location?: string | null;
+};

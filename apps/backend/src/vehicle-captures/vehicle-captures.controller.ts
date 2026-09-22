@@ -48,8 +48,7 @@ export class VehicleCapturesController {
     description:
       "Accepts a raw JPEG photo captured by a vehicle-mounted device, along with its location " +
       "and capture time. The photo is matched to the nearest road segment and queued for " +
-      "classification. The classification model does not exist yet — this endpoint only " +
-      "receives and stores the photo for later processing.",
+      "classification by the image workers. Capture timestamps may be at most five minutes in the future.",
   })
   @ApiCreatedResponse({
     type: VehicleCaptureResponseDto,

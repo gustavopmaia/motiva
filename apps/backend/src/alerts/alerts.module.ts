@@ -1,3 +1,5 @@
+import { runs } from "../bootstrap/runtime-role";
+import { MaintenanceModule } from "../modules/maintenance/public";
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { AlertsProcessor } from "./alerts.processor";
@@ -11,13 +13,14 @@ import { ALERT_EVENTS_QUEUE, SEGMENT_EVENTS_QUEUE } from "../common/queues";
 @Module({
   imports: [
     DatabaseModule,
-    AuthModule,
+    MaintenanceModule,
+    ...(runs("api") ? [AuthModule] : []),
     TeamsModule,
     BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE }),
     BullModule.registerQueue({ name: ALERT_EVENTS_QUEUE }),
   ],
-  providers: [AlertsProcessor, AlertsService],
-  controllers: [AlertsController],
+  providers: [...(runs("domain") ? [AlertsProcessor] : []), AlertsService],
+  controllers: runs("api") ? [AlertsController] : [],
   exports: [AlertsService],
 })
 export class AlertsModule {}

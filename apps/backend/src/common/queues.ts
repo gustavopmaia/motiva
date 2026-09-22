@@ -13,10 +13,14 @@ export const DEFAULT_JOB_OPTIONS = {
   backoff: {
     type: "exponential",
     delay: 2000,
+    jitter: 0.2,
   },
 } as const;
 
 export type ProcessReadingResultJob = {
+  eventId?: string;
+  riskVersion?: number;
+  interventionAt?: string | null;
   segmentId: string;
   score: number;
   level: AlertLevel;
@@ -28,5 +32,7 @@ export type CreateWorkOrderJob = ProcessReadingResultJob & {
 };
 
 export type PhotoClassificationRequestedJob = {
+  event?: { correlationId: string };
+  eventId?: string;
   captureId: string;
 };

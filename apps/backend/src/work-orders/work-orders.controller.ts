@@ -2,9 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
-  ForbiddenException,
   Get,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -30,7 +28,6 @@ import {
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { WorkOrdersService } from "./work-orders.service";
-import { TeamsService } from "../teams/teams.service";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/roles.decorator";
@@ -59,7 +56,6 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 export class WorkOrdersController {
   constructor(
     private readonly workOrdersService: WorkOrdersService,
-    private readonly teamsService: TeamsService,
     private readonly workOrderPhotosService: WorkOrderPhotosService,
   ) {}
 
@@ -79,13 +75,7 @@ export class WorkOrdersController {
     description: "The JWT access token is missing, invalid, expired, or cannot be verified.",
   })
   async findAll(@Request() req: { user: JwtPayload }, @Query() filters: WorkOrderFiltersDto) {
-    const scope = await this.teamsService.scopeFor(req.user);
-    if (scope.kind === "none") return [];
-
-    const workOrders = await this.workOrdersService.findAll(
-      scope.kind === "team" ? { ...filters, team: scope.team.name } : filters,
-    );
-    return workOrders;
+    return this.workOrdersService.findAll(filters, req.user);
   }
 
   @Post()
@@ -110,8 +100,8 @@ export class WorkOrdersController {
   @ApiForbiddenResponse({
     description: "The authenticated user does not have the manager role.",
   })
-  async create(@Body() body: CreateWorkOrderRequestDto) {
-    return this.workOrdersService.create(body);
+  async create(@Body() body: CreateWorkOrderRequestDto, @Request() req: { user: JwtPayload }) {
+    return this.workOrdersService.create(body, req.user);
   }
 
   @Patch(":id")
@@ -139,14 +129,7 @@ export class WorkOrdersController {
     @Body() body: UpdateWorkOrderRequestDto,
     @Request() req: { user: JwtPayload },
   ) {
-    if (req.user.role === "field") {
-      if (body.team !== undefined) {
-        throw new ForbiddenException("Field users cannot reassign work orders");
-      }
-      await this.assertFieldUserOwnsWorkOrder(req.user.sub, id);
-    }
-
-    return this.workOrdersService.update(id, body);
+    return this.workOrdersService.update(id, body, req.user);
   }
 
   @Post(":id/complete")
@@ -194,10 +177,6 @@ export class WorkOrdersController {
     @Body() body: Record<string, unknown>,
     @Request() req: { user: JwtPayload },
   ) {
-    if (req.user.role === "field") {
-      await this.assertFieldUserOwnsWorkOrder(req.user.sub, id);
-    }
-
     if (!photo) {
       throw invalidPhotoPayload([{ field: "photo", message: "photo is required" }]);
     }
@@ -218,19 +197,10 @@ export class WorkOrdersController {
       id,
       input,
       photo.buffer,
+      req.user,
     );
 
     return { ...workOrder, photo: toPhotoResponse(savedPhoto) };
-  }
-
-  private async assertFieldUserOwnsWorkOrder(userId: string, workOrderId: string) {
-    const wo = await this.workOrdersService.findById(workOrderId);
-    if (!wo) throw new NotFoundException("Work order not found");
-
-    const userTeam = await this.teamsService.findByUserId(userId);
-    if (!userTeam || wo.team !== userTeam.name) {
-      throw new ForbiddenException("You can only modify work orders assigned to your team");
-    }
   }
 }
 

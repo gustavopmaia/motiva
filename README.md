@@ -55,26 +55,26 @@ apagado no logout para não expor dados de uma equipe à próxima que entrar no 
 
 ## Backend
 
+O backend permite processos separados por `BACKEND_ROLE=api|domain|images|mqtt`; `all` mantém o modo local. APIs e workers de imagens usam S3 compartilhado em produção. No desenvolvimento com disco, configure `NODE_ENV=development` e `STORAGE_DRIVER=local`.
+
 ```bash
 npm run lint --workspace=backend
 npm run check-types --workspace=backend
-npm test --workspace=backend                 # unitários, sem banco
-npm run test:integration --workspace=backend # exige TEST_DATABASE_URL
-```
+npm test --workspace=backend -- --runInBand
 
-Os testes de integração rodam contra um Postgres com PostGIS e cobrem o SQL cru:
-match geográfico de trecho, fusão de leituras, escopo por território e replanejamento
-de rotas. Sem `TEST_DATABASE_URL` eles se auto-pulam.
-
-```bash
-docker run -d --name motiva-test-db -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test \
-  -e POSTGRES_DB=motiva_test -p 55432:5432 postgis/postgis:17-3.5
-
+docker compose -f docker-compose.test.yml up -d --wait
 TEST_DATABASE_URL=postgresql://test:test@localhost:55432/motiva_test \
-  npm run test:integration --workspace=backend
+TEST_REDIS_URL=redis://localhost:56379 \
+TEST_S3_ENDPOINT=http://localhost:59000 \
+TEST_MQTT_URL=mqtt://localhost:51883 \
+AWS_ACCESS_KEY_ID=motiva-test AWS_SECRET_ACCESS_KEY=motiva-test-secret \
+npm run test:integration --workspace=backend
+docker compose -f docker-compose.test.yml down
 ```
 
-Documentação da API em `/api/docs` com o serviço no ar.
+A integração exige as quatro dependências, trunca o banco indicado e deve usar somente dados descartáveis. Cobre PostGIS, outbox/Redis, S3, MQTT, autorização, evidências, planejamento e múltiplos processos reais.
+
+Documentação da API em `/api/docs`. Consulte o [plano e estado da entrega](BACKEND-ARCHITECTURE-PLAN.md), a [decisão de arquitetura](docs/adr/0001-backend-modular-e-processos.md), o [runbook de operação/rollout](docs/BACKEND-OPERATIONS.md) e os [benchmarks locais](docs/benchmarks/README.md).
 
 ## CI — build e push de imagem
 

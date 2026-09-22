@@ -1,3 +1,6 @@
+import { runs } from "../bootstrap/runtime-role";
+import { ClassifierClient } from "./classifier-client";
+import { SegmentLocator } from "../road-segments/segment-locator";
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { VehicleCapturesController } from "./vehicle-captures.controller";
@@ -11,11 +14,17 @@ import { PHOTO_CLASSIFICATION_QUEUE } from "../common/queues";
 @Module({
   imports: [
     DatabaseModule,
-    AuthModule,
+    ...(runs("api") ? [AuthModule] : []),
     ReadingsModule,
     BullModule.registerQueue({ name: PHOTO_CLASSIFICATION_QUEUE }),
   ],
-  providers: [VehicleCapturesService, VehicleCapturesProcessor],
-  controllers: [VehicleCapturesController],
+  providers: [
+    ClassifierClient,
+    SegmentLocator,
+    VehicleCapturesService,
+    ...(runs("images") ? [VehicleCapturesProcessor] : []),
+  ],
+  exports: [ClassifierClient],
+  controllers: runs("api") ? [VehicleCapturesController] : [],
 })
 export class VehicleCapturesModule {}

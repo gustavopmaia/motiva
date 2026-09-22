@@ -2,13 +2,22 @@ import { Logger, VersioningType } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { Logger as PinoLogger } from "nestjs-pino";
-import { AppModule } from "./app.module";
+
 import { parseCorsOrigins } from "./common/env";
 import { setupDocs } from "./common/docs";
 import { GlobalExceptionFilter } from "./common/global-exception.filter";
 import { createValidationPipe } from "./common/validation.pipe";
 
 async function bootstrap() {
+  for (const path of ["apps/backend/.env", ".env"]) {
+    try {
+      process.loadEnvFile(path);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  const { AppModule } = await import("./app.module");
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   // Substitui o logger interno do Nest pelo pino: dai em diante todo
   // `new Logger(...)`/`Logger.log(...)` (inclusive os ja existentes, ex.

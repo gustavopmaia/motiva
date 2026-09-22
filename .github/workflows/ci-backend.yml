@@ -11,6 +11,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - "Dockerfile"
+      - "docker-compose.test.yml"
       - ".github/workflows/ci-backend.yml"
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - "Dockerfile"
+      - "docker-compose.test.yml"
       - ".github/workflows/ci-backend.yml"
 
 env:
@@ -48,6 +50,15 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -64,11 +75,28 @@ jobs:
 
       - run: npm test --workspace=backend
 
+      - name: Start disposable S3 fixture
+        run: |
+          docker run -d --name motiva-test-s3 -p 9000:9000 -e MINIO_ROOT_USER=motiva-test -e MINIO_ROOT_PASSWORD=motiva-test-secret quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+          curl --retry 20 --retry-delay 1 --retry-connrefused --fail http://localhost:9000/minio/health/live
+
+      - name: Start disposable MQTT fixture
+        run: |
+          docker run -d --name motiva-test-mqtt -p 1883:1883 -v "$PWD/apps/backend/test-fixtures/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro" eclipse-mosquitto:2
+          for attempt in $(seq 1 30); do
+            if docker exec motiva-test-mqtt mosquitto_pub -h localhost -t test/health -m ok; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+
       - run: npm run test:integration --workspace=backend
         env:
           TEST_DATABASE_URL: postgresql://test:test@localhost:5432/motiva_test
-
-      - run: npm run build --workspace=backend
+          TEST_REDIS_URL: redis://localhost:6379
+          TEST_S3_ENDPOINT: http://localhost:9000
+          TEST_MQTT_URL: mqtt://localhost:1883
+          AWS_ACCESS_KEY_ID: motiva-test
+          AWS_SECRET_ACCESS_KEY: motiva-test-secret
 
   publish:
     name: Build & Push Image

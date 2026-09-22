@@ -1,15 +1,14 @@
+import { TrackedUploads } from "../platform/storage/tracked-uploads";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash, randomUUID } from "crypto";
-import { mkdirSync, writeFileSync } from "fs";
-import { join } from "path";
 import { eq } from "drizzle-orm";
 import * as exifr from "exifr";
-import { DuplicateResourceError, InvalidOperationError, NotFoundError } from "../common/errors";
+import { DuplicateResourceError, InvalidOperationError } from "../common/errors";
 import { DrizzleService } from "../database/drizzle.service";
 import { workOrderPhotos } from "../database/schema";
 import { WorkOrder } from "../work-orders/work-order.entity";
-import { WorkOrdersService } from "../work-orders/work-orders.service";
+import { WorkOrdersService, WorkOrderActor } from "../work-orders/work-orders.service";
 import { CreateWorkOrderPhotoInput } from "./work-order-photo-input.mapper";
 import { ExifData, compareExif } from "./exif-compare";
 import { WorkOrderPhoto, WorkOrderPhotoValidationStatus } from "./work-order-photo.entity";
@@ -24,7 +23,6 @@ export type AttachPhotoResult = {
 
 @Injectable()
 export class WorkOrderPhotosService {
-  private readonly storageDir: string;
   private readonly distanceToleranceMeters: number;
   private readonly timeToleranceSeconds: number;
 
@@ -32,8 +30,8 @@ export class WorkOrderPhotosService {
     private readonly drizzle: DrizzleService,
     private readonly config: ConfigService,
     private readonly workOrdersService: WorkOrdersService,
+    private readonly storage: TrackedUploads,
   ) {
-    this.storageDir = this.config.get<string>("WORK_ORDER_PHOTOS_DIR") ?? "/data/work-order-photos";
     this.distanceToleranceMeters = Number(
       this.config.get<string>("WORK_ORDER_PHOTO_DISTANCE_TOLERANCE_M") ??
         DEFAULT_DISTANCE_TOLERANCE_METERS,
@@ -42,22 +40,18 @@ export class WorkOrderPhotosService {
       this.config.get<string>("WORK_ORDER_PHOTO_TIME_TOLERANCE_S") ??
         DEFAULT_TIME_TOLERANCE_SECONDS,
     );
-    mkdirSync(this.storageDir, { recursive: true });
   }
 
   async attachAndComplete(
     workOrderId: string,
     input: CreateWorkOrderPhotoInput,
     photo: Buffer,
+    actor: WorkOrderActor,
   ): Promise<AttachPhotoResult> {
-    const workOrder = await this.workOrdersService.findById(workOrderId);
-    if (!workOrder) throw new NotFoundError("Work order not found");
-    if (workOrder.status === "completed") {
-      throw new InvalidOperationError("Work order is already completed");
-    }
-
-    const existingPhoto = await this.findByWorkOrderId(workOrderId);
-    if (existingPhoto) throw new DuplicateResourceError("Work order already has a photo");
+    await this.drizzle.transaction(async (tx) => {
+      const order = await this.workOrdersService.lockOrder(tx, workOrderId);
+      await this.workOrdersService.assertAccess(tx, actor, order);
+    });
 
     const exif = await this.extractExif(photo);
     const compared = compareExif(
@@ -70,41 +64,55 @@ export class WorkOrderPhotosService {
 
     const id = randomUUID();
     const photoPath = `${id}.jpg`;
-    writeFileSync(join(this.storageDir, photoPath), photo);
+    await this.storage.put("work-order-photos", photoPath, photo);
+    return this.drizzle.transaction(async (tx) => {
+      const order = await this.workOrdersService.lockOrder(tx, workOrderId);
+      await this.workOrdersService.assertAccess(tx, actor, order);
+      const [existing] = await tx
+        .select()
+        .from(workOrderPhotos)
+        .where(eq(workOrderPhotos.workOrderId, workOrderId));
+      if (existing) {
+        if (
+          existing.photoHash !== photoHash ||
+          existing.lat !== input.lat ||
+          existing.lon !== input.lon ||
+          existing.capturedAt.getTime() !== input.capturedAt.getTime()
+        )
+          throw new DuplicateResourceError("Work order already has different completion evidence");
+        return {
+          workOrder: await this.workOrdersService.complete(workOrderId, actor, tx),
+          photo: toWorkOrderPhoto(existing),
+        };
+      }
+      if (order.status === "completed")
+        throw new InvalidOperationError("Work order is already completed");
 
-    const [saved] = await this.drizzle.db
-      .insert(workOrderPhotos)
-      .values({
-        id,
-        workOrderId,
-        photoPath,
-        photoHash,
-        lat: input.lat,
-        lon: input.lon,
-        capturedAt: input.capturedAt,
-        exifLat: exif?.lat ?? null,
-        exifLon: exif?.lon ?? null,
-        exifCapturedAt: exif?.capturedAt ?? null,
-        validationStatus: compared.status,
-        distanceMeters: compared.distanceMeters,
-        timeDiffSeconds: compared.timeDiffSeconds,
-        createdAt: new Date(),
-      })
-      .returning();
+      const [saved] = await tx
+        .insert(workOrderPhotos)
+        .values({
+          id,
+          workOrderId,
+          photoPath,
+          photoHash,
+          lat: input.lat,
+          lon: input.lon,
+          capturedAt: input.capturedAt,
+          exifLat: exif?.lat ?? null,
+          exifLon: exif?.lon ?? null,
+          exifCapturedAt: exif?.capturedAt ?? null,
+          validationStatus: compared.status,
+          distanceMeters: compared.distanceMeters,
+          timeDiffSeconds: compared.timeDiffSeconds,
+          createdAt: new Date(),
+        })
+        .returning();
 
-    const completed = await this.workOrdersService.complete(workOrderId);
+      await this.storage.attach(tx, "work-order-photos", photoPath);
+      const completed = await this.workOrdersService.complete(workOrderId, actor, tx);
 
-    return { workOrder: completed, photo: toWorkOrderPhoto(saved) };
-  }
-
-  private async findByWorkOrderId(workOrderId: string): Promise<WorkOrderPhoto | null> {
-    const [row] = await this.drizzle.db
-      .select()
-      .from(workOrderPhotos)
-      .where(eq(workOrderPhotos.workOrderId, workOrderId))
-      .limit(1);
-
-    return row ? toWorkOrderPhoto(row) : null;
+      return { workOrder: completed, photo: toWorkOrderPhoto(saved) };
+    });
   }
 
   private async extractExif(photo: Buffer): Promise<ExifData> {

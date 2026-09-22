@@ -1,0 +1,14 @@
+{
+  "result": "passed",
+  "checks": [
+    "model readiness",
+    "concurrent inference",
+    "determinism",
+    "invalid format",
+    "invalid bytes",
+    "size limit"
+  ],
+  "modelVersion": "sha256:b8e0c3ef977c1b8c1e6635ce556d66021bad61f6632fe6b1e7e52c0bed60a357",
+  "executedAt": "2026-09-14",
+  "platform": "linux/amd64 on local Docker"
+}

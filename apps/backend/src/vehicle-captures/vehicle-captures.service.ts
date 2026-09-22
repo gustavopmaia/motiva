@@ -1,25 +1,14 @@
+import { validObservationTime } from "../modules/monitoring/public";
+import { InvalidOperationError } from "../common/errors";
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { InjectQueue } from "@nestjs/bullmq";
-import { Queue } from "bullmq";
 import { randomUUID } from "crypto";
-import { mkdirSync, writeFileSync } from "fs";
-import { join } from "path";
-import { sql } from "drizzle-orm";
-import { NotFoundError } from "../common/errors";
 import { DrizzleService } from "../database/drizzle.service";
 import { vehicleCaptures } from "../database/schema";
-import {
-  DEFAULT_JOB_OPTIONS,
-  PHOTO_CLASSIFICATION_QUEUE,
-  PHOTO_CLASSIFICATION_REQUESTED_JOB,
-  PhotoClassificationRequestedJob,
-} from "../common/queues";
+import { PHOTO_CLASSIFICATION_QUEUE, PHOTO_CLASSIFICATION_REQUESTED_JOB } from "../common/queues";
 import { CreateVehicleCaptureInput } from "./vehicle-capture-input.mapper";
-
-type SegmentMatchRow = {
-  id: string;
-};
+import { SegmentLocator } from "../road-segments/segment-locator";
+import { TrackedUploads } from "../platform/storage/tracked-uploads";
+import { appendEvent } from "../platform/messaging/outbox";
 
 export type VehicleCapture = {
   id: string;
@@ -27,65 +16,40 @@ export type VehicleCapture = {
   classified: boolean;
   createdAt: Date;
 };
-
 @Injectable()
 export class VehicleCapturesService {
-  private readonly storageDir: string;
-
   constructor(
     private readonly drizzle: DrizzleService,
-    private readonly config: ConfigService,
-    @InjectQueue(PHOTO_CLASSIFICATION_QUEUE) private readonly classificationQueue: Queue,
-  ) {
-    this.storageDir = this.config.get<string>("VEHICLE_CAPTURES_DIR") ?? "/data/vehicle-captures";
-    mkdirSync(this.storageDir, { recursive: true });
-  }
-
-  getStorageDir(): string {
-    return this.storageDir;
-  }
-
+    private readonly locator: SegmentLocator,
+    private readonly storage: TrackedUploads,
+  ) {}
   async create(input: CreateVehicleCaptureInput, photo: Buffer): Promise<VehicleCapture> {
-    const [segment] = await this.drizzle.db.execute<SegmentMatchRow>(sql`
-      SELECT id
-      FROM road_segments
-      ORDER BY ST_Distance(
-        geometry::geography,
-        ST_SetSRID(ST_MakePoint(${input.lon}, ${input.lat}), 4326)::geography
-      )
-      LIMIT 1
-    `);
-
-    if (!segment) throw new NotFoundError("Road segment not found");
-
+    if (!validObservationTime(input.capturedAt))
+      throw new InvalidOperationError(
+        "capturedAt must be valid and at most 5 minutes in the future",
+      );
+    const segmentId = await this.locator.locate(input.lat, input.lon);
     const id = randomUUID();
     const photoPath = `${id}.jpg`;
-    writeFileSync(join(this.storageDir, photoPath), photo);
-
-    const [saved] = await this.drizzle.db
-      .insert(vehicleCaptures)
-      .values({
-        id,
-        segmentId: segment.id,
-        photoPath,
-        lat: input.lat,
-        lon: input.lon,
-        capturedAt: input.capturedAt,
-        createdAt: new Date(),
-      })
-      .returning();
-
-    await this.classificationQueue.add(
-      PHOTO_CLASSIFICATION_REQUESTED_JOB,
-      { captureId: id } satisfies PhotoClassificationRequestedJob,
-      DEFAULT_JOB_OPTIONS,
-    );
-
-    return {
-      id: saved.id,
-      segmentId: saved.segmentId,
-      classified: saved.classifiedAt != null,
-      createdAt: saved.createdAt,
-    };
+    await this.storage.put("vehicle-captures", photoPath, photo);
+    return this.drizzle.transaction(async (tx) => {
+      const [saved] = await tx
+        .insert(vehicleCaptures)
+        .values({
+          id,
+          segmentId,
+          photoPath,
+          lat: input.lat,
+          lon: input.lon,
+          capturedAt: input.capturedAt,
+          createdAt: new Date(),
+        })
+        .returning();
+      await this.storage.attach(tx, "vehicle-captures", photoPath);
+      await appendEvent(tx, PHOTO_CLASSIFICATION_QUEUE, PHOTO_CLASSIFICATION_REQUESTED_JOB, {
+        captureId: id,
+      });
+      return { id: saved.id, segmentId, classified: false, createdAt: saved.createdAt };
+    });
   }
 }

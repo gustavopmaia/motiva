@@ -1,94 +1,34 @@
-import { FusionService } from "./fusion.service";
-import { Reading } from "./reading.entity";
-import { RoadSegment } from "../road-segments/road-segment.entity";
-import { DEFAULT_JOB_OPTIONS, SEGMENT_RISK_LEVEL_CHANGED_JOB } from "../common/queues";
-
-const seg = (score: number | null = null): RoadSegment => ({
-  id: "seg-1",
-  roadName: "BR-101",
-  kmStart: 0,
-  kmEnd: 1,
-  mowingType: null,
-  direction: null,
-  scoreCurrent: score,
-  scoreDivergent: false,
-  geometry: {
-    type: "LineString",
-    coordinates: [
-      [-46.78, -23.41],
-      [-46.78, -23.42],
-    ],
-  },
-});
-
-const reading = (source: "iot" | "vehicle" | "satellite", score: number): Reading => ({
-  id: "r-1",
-  segmentId: "seg-1",
-  source,
-  heightCm: null,
-  classification: null,
-  confidence: 1,
-  score,
-  lat: 0,
-  lon: 0,
-  metadata: null,
-  createdAt: new Date(),
-});
-
-const makeService = (readings: Reading[], segment: RoadSegment | null = seg()) => {
-  const whereSegment = jest
-    .fn()
-    .mockReturnValue({ limit: jest.fn().mockResolvedValue(segment ? [segment] : []) });
-  const select = jest.fn().mockReturnValue({
-    from: jest.fn().mockReturnValue({ where: whereSegment }),
+import { crossedRiskThreshold, fuse, readingScore, riskLevel } from "../modules/monitoring/public";
+describe("risk policy v1", () => {
+  it("normalizes weights for the available sources", () => {
+    expect(fuse([{ source: "iot", score: 40 }])).toEqual({ score: 40, divergent: false });
+    expect(
+      fuse([
+        { source: "iot", score: 90 },
+        { source: "vehicle", score: 20 },
+        { source: "satellite", score: 30 },
+      ]),
+    ).toEqual({ score: 56.5, divergent: true });
   });
-  const whereUpdate = jest.fn().mockResolvedValue(undefined);
-  const set = jest.fn().mockReturnValue({ where: whereUpdate });
-  const update = jest.fn().mockReturnValue({ set });
-  const drizzle = {
-    db: {
-      select,
-      execute: jest.fn().mockResolvedValue(readings),
-      update,
-    },
-  };
-  const readingsQueue = { add: jest.fn().mockResolvedValue(undefined) };
-  const service = new (FusionService as any)(drizzle, readingsQueue);
-  return { service, drizzle, set, readingsQueue };
-};
-
-describe("FusionService", () => {
-  it("deve ponderar corretamente com as 3 fontes presentes e cruzar threshold", async () => {
-    const readings = [reading("iot", 60), reading("vehicle", 60), reading("satellite", 60)];
-    const { service, readingsQueue } = makeService(readings, seg(0));
-
-    await service.updateScoreForSegment("seg-1", "r-1");
-
-    expect(readingsQueue.add).toHaveBeenCalledWith(
-      SEGMENT_RISK_LEVEL_CHANGED_JOB,
-      expect.objectContaining({ score: 60, level: "urgent" }),
-      expect.objectContaining(DEFAULT_JOB_OPTIONS),
-    );
+  it("represents missing observations separately from safe vegetation", () => {
+    expect(fuse([])).toBeNull();
+    expect(fuse([{ source: "iot", score: 0 }])?.score).toBe(0);
   });
-
-  it("deve normalizar pesos quando apenas uma fonte está presente", async () => {
-    const { service, readingsQueue, set } = makeService([reading("iot", 40)], seg(0));
-
-    await service.updateScoreForSegment("seg-1", "r-1");
-
-    expect(set).toHaveBeenCalledWith({ scoreCurrent: 40, scoreDivergent: false });
-    expect(readingsQueue.add).toHaveBeenCalledWith(
-      SEGMENT_RISK_LEVEL_CHANGED_JOB,
-      expect.objectContaining({ level: "attention" }),
-      expect.objectContaining(DEFAULT_JOB_OPTIONS),
-    );
+  it.each([
+    [29.99, null],
+    [30, "attention"],
+    [55, "urgent"],
+    [80, "critical"],
+  ])("classifies score %s", (score, expected) => expect(riskLevel(score as number)).toBe(expected));
+  it("detects crossings in both directions without firing within a level", () => {
+    expect(crossedRiskThreshold(20, 60)).toBe(true);
+    expect(crossedRiskThreshold(85, 50)).toBe(true);
+    expect(crossedRiskThreshold(60, 70)).toBe(false);
   });
-
-  it("não deve enfileirar job quando score não cruza nenhum threshold", async () => {
-    const { service, readingsQueue } = makeService([reading("iot", 60)], seg(60));
-
-    await service.updateScoreForSegment("seg-1", "r-1");
-
-    expect(readingsQueue.add).not.toHaveBeenCalled();
+  it("keeps the original scoring policy and clamps the result", () => {
+    expect(readingScore({ source: "iot", heightCm: 50 }, 1)).toBe(70);
+    expect(readingScore({ source: "iot", heightCm: 100 }, 1)).toBe(100);
+    expect(readingScore({ source: "satellite", ndvi: 0 }, 1)).toBe(0);
+    expect(readingScore({ source: "vehicle", classification: "urgent" }, 0.8)).toBe(68);
   });
 });

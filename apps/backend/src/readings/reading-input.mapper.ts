@@ -32,7 +32,7 @@ function validateAs<T extends object>(dto: new () => T, body: Record<string, unk
 
 export function toCreateReadingInput(body: Record<string, unknown>): CreateReadingInput {
   const source = body.source;
-  if (typeof source !== "string" || !(source in DTO_BY_SOURCE)) {
+  if (typeof source !== "string" || !Object.prototype.hasOwnProperty.call(DTO_BY_SOURCE, source)) {
     throw new InvalidReadingPayloadError([
       { field: "source", message: `source must be ${formatList(READING_SOURCES)}` },
     ]);
@@ -46,6 +46,7 @@ export function toCreateReadingInput(body: Record<string, unknown>): CreateReadi
     const dto = validateAs(VehicleReadingRequestDto, body);
     return {
       source: "vehicle",
+      ...observationIdentity(body),
       lat: dto.lat,
       lon: dto.lon,
       classification: dto.classification,
@@ -57,6 +58,7 @@ export function toCreateReadingInput(body: Record<string, unknown>): CreateReadi
   const dto = validateAs(SatelliteReadingRequestDto, body);
   return {
     source: "satellite",
+    ...observationIdentity(body),
     lat: dto.lat,
     lon: dto.lon,
     ndvi: dto.ndvi,
@@ -76,6 +78,7 @@ export function toIotReadingInput(
 
   return {
     source: "iot",
+    ...observationIdentity(body, nodeId),
     lat: dto.lat,
     lon: dto.lon,
     heightCm: dto.heightCm,
@@ -92,4 +95,37 @@ function readMetadata(body: Record<string, unknown>): Record<string, unknown> {
 
 function emptyToNull(metadata: Record<string, unknown>): Record<string, unknown> | null {
   return Object.keys(metadata).length > 0 ? metadata : null;
+}
+
+function observationIdentity(
+  body: Record<string, unknown>,
+  nodeId?: string,
+): { observedAt?: Date; originKey?: string } {
+  const fields: { observedAt?: Date; originKey?: string } = {};
+  if (body.observedAt !== undefined) {
+    if (
+      typeof body.observedAt !== "string" ||
+      !Number.isFinite(Date.parse(body.observedAt)) ||
+      Date.parse(body.observedAt) > Date.now() + 300000
+    ) {
+      throw new InvalidReadingPayloadError([
+        {
+          field: "observedAt",
+          message: "observedAt must be a valid timestamp no more than 5 minutes in the future",
+        },
+      ]);
+    }
+    fields.observedAt = new Date(body.observedAt);
+  }
+  if (body.eventId !== undefined) {
+    if (typeof body.eventId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(body.eventId))
+      throw new InvalidReadingPayloadError([
+        {
+          field: "eventId",
+          message: "eventId must contain 1 to 128 letters, digits, underscores or hyphens",
+        },
+      ]);
+    fields.originKey = nodeId ? `${nodeId}:${body.eventId}` : body.eventId;
+  }
+  return fields;
 }

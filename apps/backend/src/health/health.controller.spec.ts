@@ -42,4 +42,32 @@ describe("HealthController", () => {
       });
     }
   });
+
+  describe("classifier", () => {
+    const role = process.env.BACKEND_ROLE;
+    afterEach(() => {
+      if (role === undefined) delete process.env.BACKEND_ROLE;
+      else process.env.BACKEND_ROLE = role;
+    });
+    const withDownClassifier = () => {
+      const base = makeController() as unknown as Record<string, unknown>;
+      return new HealthController(
+        base.drizzle as never,
+        base.queue as never,
+        undefined,
+        undefined,
+        { checkAvailability: () => Promise.reject(new Error("down")) } as never,
+      );
+    };
+
+    it("nao derruba o processo all quando o classifier cai", async () => {
+      process.env.BACKEND_ROLE = "all";
+      await expect(withDownClassifier().check()).resolves.toEqual({ status: "ok" });
+    });
+
+    it("tira o worker de imagens de circulacao quando o classifier cai", async () => {
+      process.env.BACKEND_ROLE = "images";
+      await expect(withDownClassifier().check()).rejects.toThrow(ServiceUnavailableException);
+    });
+  });
 });

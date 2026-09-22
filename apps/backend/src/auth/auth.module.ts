@@ -1,3 +1,4 @@
+import { runs } from "../bootstrap/runtime-role";
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
@@ -7,6 +8,7 @@ import { RolesGuard } from "./guards/roles.guard";
 import { ApiKeyGuard } from "./guards/api-key.guard";
 import { AuthController } from "./auth.controller";
 import { DatabaseModule } from "../database/database.module";
+import { ApiKeysController } from "../modules/identity/transport/api-keys.controller";
 
 @Module({
   imports: [
@@ -20,7 +22,7 @@ import { DatabaseModule } from "../database/database.module";
     }),
   ],
   providers: [AuthService, JwtAuthGuard, RolesGuard, ApiKeyGuard],
-  controllers: [AuthController],
+  controllers: runs("api") ? [AuthController, ApiKeysController] : [],
   exports: [JwtModule, AuthService, JwtAuthGuard, RolesGuard, ApiKeyGuard],
 })
 export class AuthModule {}

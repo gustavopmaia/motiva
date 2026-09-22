@@ -5,6 +5,16 @@ import { resolve } from "path";
 import { DrizzleService } from "./database/drizzle.service";
 
 const TABLES = [
+  "route_audit",
+  "api_key_audit",
+  "outbox_events",
+  "outbox_replay_audit",
+  "maintenance_audit",
+  "ingestion_rejections",
+  "dispatch_requests",
+  "vehicle_captures",
+  "work_order_photos",
+  "generated_reports",
   "route_items",
   "routes",
   "work_orders",
@@ -35,7 +45,9 @@ export async function migrateTestDb(drizzle: DrizzleService): Promise<void> {
 }
 
 export async function truncateAll(drizzle: DrizzleService): Promise<void> {
-  await drizzle.db.execute(sql.raw(`TRUNCATE ${TABLES.join(", ")} RESTART IDENTITY CASCADE`));
+  await drizzle.db.execute(
+    sql.raw(`TRUNCATE object_uploads, ${TABLES.join(", ")} RESTART IDENTITY CASCADE`),
+  );
 }
 
 export async function insertSegment(

@@ -86,6 +86,7 @@ export class ReadingsController {
       throw new ForbiddenException("API key source does not match reading source");
     }
 
+    if (input.originKey) input.originKey = `http:${req.apiKeyId}:${input.originKey}`;
     const r = await this.readingsService.create(input);
     return {
       id: r.id,

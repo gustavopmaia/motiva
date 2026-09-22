@@ -12,7 +12,6 @@ import {
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { RoutesService } from "./routes.service";
-import { TeamsService } from "../teams/teams.service";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/roles.decorator";
@@ -29,10 +28,7 @@ import {
 @Controller("routes")
 @UseGuards(JwtAuthGuard)
 export class RoutesController {
-  constructor(
-    private readonly routesService: RoutesService,
-    private readonly teamsService: TeamsService,
-  ) {}
+  constructor(private readonly routesService: RoutesService) {}
 
   @Get()
   @ApiOperation({
@@ -46,12 +42,7 @@ export class RoutesController {
     description: "The JWT access token is missing, invalid, expired, or cannot be verified.",
   })
   async findAll(@Request() req: { user: JwtPayload }, @Query() filters: RouteFiltersDto) {
-    const scope = await this.teamsService.scopeFor(req.user);
-    if (scope.kind === "none") return [];
-
-    return this.routesService.findAll(
-      scope.kind === "team" ? { ...filters, teamId: scope.team.id } : filters,
-    );
+    return this.routesService.findAll(filters, req.user);
   }
 
   @Patch(":id")
@@ -71,8 +62,12 @@ export class RoutesController {
   })
   @ApiForbiddenResponse({ description: "The authenticated user does not have the manager role." })
   @ApiNotFoundResponse({ description: "No route exists for the provided identifier." })
-  async update(@Param("id") id: string, @Body() body: UpdateRouteRequestDto) {
-    return this.routesService.updateStatus(id, body.status);
+  async update(
+    @Request() req: { user: JwtPayload },
+    @Param("id") id: string,
+    @Body() body: UpdateRouteRequestDto,
+  ) {
+    return this.routesService.updateStatus(id, body.status, req.user);
   }
 
   @Patch(":id/items")
@@ -97,7 +92,11 @@ export class RoutesController {
   @ApiNotFoundResponse({
     description: "No route or work order exists for the provided identifier.",
   })
-  async setItems(@Param("id") id: string, @Body() body: SetRouteItemsRequestDto) {
-    return this.routesService.setItems(id, body.workOrderIds);
+  async setItems(
+    @Request() req: { user: JwtPayload },
+    @Param("id") id: string,
+    @Body() body: SetRouteItemsRequestDto,
+  ) {
+    return this.routesService.setItems(id, body.workOrderIds, req.user);
   }
 }

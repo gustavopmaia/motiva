@@ -62,13 +62,12 @@ export class ReportsController {
       return;
     }
 
-    const doc = this.reportsService.renderPdf(ARTESP_MONTHLY_CONTEXT(query.month), rows);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="relatorio-mensal-${query.month}.pdf"`,
     );
-    doc.pipe(res);
+    await this.reportsService.renderPdf(ARTESP_MONTHLY_CONTEXT(query.month), rows, res);
   }
 
   @Get("annual")
@@ -108,13 +107,12 @@ export class ReportsController {
       return;
     }
 
-    const doc = this.reportsService.renderPdf(ANTT_ANNUAL_CONTEXT(query.year), rows);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="relatorio-anual-${query.year}.pdf"`,
     );
-    doc.pipe(res);
+    await this.reportsService.renderPdf(ANTT_ANNUAL_CONTEXT(query.year), rows, res);
   }
 
   @Get("generated")

@@ -1,3 +1,4 @@
+import { validObservationTime } from "../modules/monitoring/public";
 import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";
 import { FieldError } from "../common/error-response";
@@ -22,6 +23,11 @@ export function toCreateVehicleCaptureInput(
   const instance = plainToInstance(VehicleCaptureRequestDto, body);
   const errors = validateSync(instance, { whitelist: true });
   if (errors.length > 0) throw new InvalidVehicleCapturePayloadError(toFieldErrors(errors));
+
+  if (!validObservationTime(new Date(instance.capturedAt)))
+    throw new InvalidVehicleCapturePayloadError([
+      { field: "capturedAt", message: "capturedAt must be no more than 5 minutes in the future" },
+    ]);
 
   return {
     lat: instance.lat,

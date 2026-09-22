@@ -1,3 +1,6 @@
+import { RiskExpiryScheduler } from "./risk-expiry.scheduler";
+import { runs } from "../bootstrap/runtime-role";
+import { SegmentLocator } from "../road-segments/segment-locator";
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { FusionService } from "./fusion.service";
@@ -9,9 +12,19 @@ import { AuthModule } from "../auth/auth.module";
 import { SEGMENT_EVENTS_QUEUE } from "../common/queues";
 
 @Module({
-  imports: [DatabaseModule, AuthModule, BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE })],
-  providers: [FusionService, ReadingsService, ReadingsMqttHandler],
-  controllers: [ReadingsController],
-  exports: [ReadingsService],
+  imports: [
+    DatabaseModule,
+    ...(runs("api") ? [AuthModule] : []),
+    BullModule.registerQueue({ name: SEGMENT_EVENTS_QUEUE }),
+  ],
+  providers: [
+    SegmentLocator,
+    FusionService,
+    ReadingsService,
+    ...(runs("mqtt") ? [ReadingsMqttHandler] : []),
+    ...(runs("domain") ? [RiskExpiryScheduler] : []),
+  ],
+  controllers: runs("api") ? [ReadingsController] : [],
+  exports: [ReadingsService, ...(runs("mqtt") ? [ReadingsMqttHandler] : [])],
 })
 export class ReadingsModule {}

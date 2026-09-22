@@ -1,0 +1,13 @@
+{
+  "at": "2026-09-14T17:59:49.781Z",
+  "node": "v24.14.0",
+  "rows": 1000,
+  "photos": 1000,
+  "pdfBytes": 1010713,
+  "wallSeconds": 0.116116209,
+  "cpuSeconds": 0.143879,
+  "maxRssMiB": 140.328125,
+  "eventLoopDelayP99Ms": 19.070975,
+  "firstChunkAfterPhotos": 1,
+  "limitations": "Single renderer with synthetic 1px JPEG and asynchronous memory adapter; excludes SQL, S3 latency, real photo buffers, HTTP clients, and concurrent reports. Pages and rows remain buffered; do not derive production memory limits from this fixture."
+}

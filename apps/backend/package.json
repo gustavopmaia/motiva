@@ -12,9 +12,18 @@
     "migrate": "node dist/src/migrate.js",
     "seed": "node dist/src/seed.js",
     "generate": "npm exec -- drizzle-kit generate",
-    "test:integration": "jest --testMatch '**/*.int-spec.ts' --runInBand"
+    "test:integration": "npm run build && node scripts/test-integration.cjs",
+    "storage:migrate": "node dist/src/platform/operations/migrate-photos.js",
+    "outbox:replay": "node dist/src/platform/operations/replay-outbox.js",
+    "start:api": "BACKEND_ROLE=api node dist/src/main.js",
+    "start:domain": "BACKEND_ROLE=domain node dist/src/main.js",
+    "start:images": "BACKEND_ROLE=images node dist/src/main.js",
+    "start:mqtt": "BACKEND_ROLE=mqtt node dist/src/main.js",
+    "storage:cleanup": "node dist/src/platform/operations/cleanup-uploads.js",
+    "benchmark": "npm run build && node scripts/benchmark.cjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1130.0",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.1.19",
     "@nestjs/config": "^4.0.4",
@@ -30,6 +39,7 @@
     "class-validator": "^0.15.1",
     "drizzle-orm": "^0.45.2",
     "exifr": "^7.1.3",
+    "ioredis": "^5.10.1",
     "mqtt": "^5.15.1",
     "nestjs-pino": "^4.6.1",
     "pdfkit": "^0.20.2",

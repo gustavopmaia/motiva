@@ -1,7 +1,10 @@
 import { sql } from "drizzle-orm";
 import { DrizzleService } from "../database/drizzle.service";
 import { DispatchService } from "./dispatch.service";
-import { WorkOrdersService } from "./work-orders.service";
+import { WorkOrdersService, SYSTEM_ACTOR } from "./work-orders.service";
+import { DrizzleDispatchRepository } from "../modules/planning/infrastructure/drizzle-dispatch.repository";
+import { buildGeographicBatches } from "../modules/planning/domain/dispatch-policy";
+import { RoutesService } from "../routes/routes.service";
 import {
   createTestDrizzle,
   describeDb,
@@ -106,6 +109,62 @@ describeDb("dispatch against a real database", () => {
     expect(await teamOf(WO_B)).toBeNull();
   });
 
+  it("rejects a calculated plan if a manual edit committed before application", async () => {
+    await insertWorkOrder(drizzle, { id: WO_A, segmentId: SEGMENT_A, alertId: ALERT_A });
+    await dispatch.runDispatch();
+    const repository = new DrizzleDispatchRepository(drizzle);
+    const snapshot = (await repository.snapshot(TEAM_NORTE, false))!;
+    const routes = new RoutesService(drizzle);
+    const [route] = await routes.findAll({}, SYSTEM_ACTOR);
+    await routes.updateStatus(route.id, "locked", SYSTEM_ACTOR);
+    expect(await repository.apply(snapshot, buildGeographicBatches(snapshot.candidates, 5))).toBe(
+      "stale",
+    );
+    expect((await routes.findById(route.id, SYSTEM_ACTOR))?.status).toBe("locked");
+  });
+
+  it("does not route an order completed while the plan was being calculated", async () => {
+    await insertWorkOrder(drizzle, { id: WO_A, segmentId: SEGMENT_A, alertId: ALERT_A });
+    const repository = new DrizzleDispatchRepository(drizzle);
+    const snapshot = (await repository.snapshot(TEAM_NORTE, false))!;
+    await new WorkOrdersService(drizzle).complete(WO_A, SYSTEM_ACTOR);
+    expect(await repository.apply(snapshot, buildGeographicBatches(snapshot.candidates, 5))).toBe(
+      "stale",
+    );
+    expect(await countRoutes()).toBe(0);
+  });
+
+  it("replans from fresh capacity when configuration changes during calculation", async () => {
+    await insertWorkOrder(drizzle, { id: WO_A, segmentId: SEGMENT_A, alertId: ALERT_A });
+    await insertWorkOrder(drizzle, { id: WO_B, segmentId: SEGMENT_B, alertId: ALERT_B });
+    const repository = new DrizzleDispatchRepository(drizzle);
+    const snapshot = (await repository.snapshot(TEAM_NORTE, false))!;
+    await drizzle.db.execute(sql`UPDATE teams SET capacity_per_day = 1 WHERE id = ${TEAM_NORTE}`);
+    expect(await repository.apply(snapshot, buildGeographicBatches(snapshot.candidates, 5))).toBe(
+      "stale",
+    );
+    await dispatch.runDispatch(true);
+    expect(await countRoutes()).toBe(2);
+  });
+
+  it("releases pending routes when their team is disabled", async () => {
+    await insertWorkOrder(drizzle, { id: WO_A, segmentId: SEGMENT_A, alertId: ALERT_A });
+    await dispatch.runDispatch();
+    await drizzle.db.execute(sql`UPDATE teams SET active = false WHERE id = ${TEAM_NORTE}`);
+    await dispatch.runDispatch(true);
+    expect(await countRoutes()).toBe(0);
+    expect(await teamOf(WO_A)).toBeNull();
+  });
+
+  it("keeps a single assignment when two dispatchers calculate concurrently", async () => {
+    await insertWorkOrder(drizzle, { id: WO_A, segmentId: SEGMENT_A, alertId: ALERT_A });
+    await Promise.all([dispatch.runDispatch(true), new DispatchService(drizzle).runDispatch(true)]);
+    expect(await countRoutes()).toBe(1);
+    expect(
+      await drizzle.db.execute(sql`SELECT id FROM route_items WHERE work_order_id = ${WO_A}`),
+    ).toHaveLength(1);
+  });
+
   describe("clearOpenRoutes", () => {
     const criarRota = async (routeId: string, status: string, workOrderId: string) => {
       await drizzle.db.execute(sql`
@@ -179,8 +238,8 @@ describeDb("dispatch against a real database", () => {
         sql`UPDATE road_segments SET score_current = 85, score_divergent = true WHERE id = ${SEGMENT_A}`,
       );
 
-      const workOrders = new WorkOrdersService(drizzle, { markNeedsReplan: jest.fn() } as never);
-      await workOrders.complete(WO_A);
+      const workOrders = new WorkOrdersService(drizzle);
+      await workOrders.complete(WO_A, SYSTEM_ACTOR);
 
       const [segment] = await drizzle.db.execute<{
         score_current: number;
@@ -205,8 +264,8 @@ describeDb("dispatch against a real database", () => {
       await insertWorkOrder(drizzle, { id: WO_A, segmentId: SEGMENT_A, alertId: ALERT_A });
       await insertWorkOrder(drizzle, { id: WO_B, segmentId: SEGMENT_B, alertId: ALERT_B });
 
-      const workOrders = new WorkOrdersService(drizzle, { markNeedsReplan: jest.fn() } as never);
-      await workOrders.complete(WO_A);
+      const workOrders = new WorkOrdersService(drizzle);
+      await workOrders.complete(WO_A, SYSTEM_ACTOR);
 
       const [row] = await drizzle.db.execute<{ status: string }>(
         sql`SELECT status FROM work_orders WHERE id = ${WO_B}`,

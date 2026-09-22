@@ -31,6 +31,7 @@ describe("WorkOrdersProcessor", () => {
 
     expect(workOrdersService.create).toHaveBeenCalledWith(
       expect.objectContaining({ priority: "critical" }),
+      expect.objectContaining({ role: "system" }),
     );
   });
 
@@ -49,6 +50,7 @@ describe("WorkOrdersProcessor", () => {
 
     expect(workOrdersService.create).toHaveBeenCalledWith(
       expect.objectContaining({ priority: "attention" }),
+      expect.objectContaining({ role: "system" }),
     );
   });
 

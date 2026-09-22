@@ -15,15 +15,23 @@ const db = drizzle(client);
 const rootMigrations = resolve(process.cwd(), "apps/backend/drizzle/migrations");
 const localMigrations = resolve(process.cwd(), "drizzle/migrations");
 
-migrate(db, {
-  migrationsFolder: existsSync(rootMigrations) ? rootMigrations : localMigrations,
-})
-  .then(() => {
+async function run(): Promise<void> {
+  try {
+    // max:1 pins the advisory lock and migrator to the same session.
+    await client`SELECT pg_advisory_lock(734627, 1)`;
+    await migrate(db, {
+      migrationsFolder: existsSync(rootMigrations) ? rootMigrations : localMigrations,
+    });
     process.stdout.write("Migrations applied successfully\n");
-    return client.end();
-  })
-  .then(() => process.exit(0))
-  .catch((err) => {
-    process.stderr.write(`Migration failed: ${String(err)}\n`);
-    process.exit(1);
-  });
+  } finally {
+    try {
+      await client`SELECT pg_advisory_unlock(734627, 1)`;
+    } finally {
+      await client.end();
+    }
+  }
+}
+run().catch((error) => {
+  process.stderr.write(`Migration failed: ${String(error)}\n`);
+  process.exitCode = 1;
+});

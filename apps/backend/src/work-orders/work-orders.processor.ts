@@ -4,7 +4,7 @@ import { Job } from "bullmq";
 import { AlertLevel } from "../common/risk-level";
 import { WorkOrderPriority } from "./work-order.entity";
 import { AlertsService } from "../alerts/alerts.service";
-import { WorkOrdersService } from "./work-orders.service";
+import { WorkOrdersService, SYSTEM_ACTOR } from "./work-orders.service";
 import { ALERT_EVENTS_QUEUE, CreateWorkOrderJob } from "../common/queues";
 
 const LEVEL_TO_PRIORITY: Record<AlertLevel, WorkOrderPriority> = {
@@ -27,12 +27,15 @@ export class WorkOrdersProcessor extends WorkerHost {
   async process(job: Job<CreateWorkOrderJob>): Promise<void> {
     const { segmentId, score, level, alertId } = job.data;
     try {
-      const workOrder = await this.workOrdersService.create({
-        segmentId,
-        alertId,
-        priority: LEVEL_TO_PRIORITY[level],
-        scoreAtCreation: score,
-      });
+      const workOrder = await this.workOrdersService.create(
+        {
+          segmentId,
+          alertId,
+          priority: LEVEL_TO_PRIORITY[level],
+          scoreAtCreation: score,
+        },
+        SYSTEM_ACTOR,
+      );
       await this.alertsService.updateOsId(alertId, workOrder.id);
       this.logger.log(
         `job=${job.name} result=work-order.ready segmentId=${segmentId} alertId=${alertId} workOrderId=${workOrder.id}`,

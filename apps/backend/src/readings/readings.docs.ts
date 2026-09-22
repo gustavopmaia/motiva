@@ -8,7 +8,25 @@ import {
   RequiredNumber,
 } from "../common/validation.decorators";
 
-export class IotReadingRequestDto {
+class ReadingIdentityDto {
+  @ApiPropertyOptional({
+    description: "Stable producer event identity; retries with different content are rejected.",
+    maxLength: 128,
+    pattern: "^[A-Za-z0-9_-]+$",
+  })
+  @Allow()
+  eventId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Observation timestamp, at most five minutes in the future. Omitted values use receipt time.",
+    format: "date-time",
+  })
+  @Allow()
+  observedAt?: string;
+}
+
+export class IotReadingRequestDto extends ReadingIdentityDto {
   @ApiProperty({
     description: "Reading source identifier for IoT vegetation sensors.",
     enum: ["iot"],
@@ -60,7 +78,7 @@ export class IotReadingRequestDto {
   metadata?: Record<string, unknown>;
 }
 
-export class VehicleReadingRequestDto {
+export class VehicleReadingRequestDto extends ReadingIdentityDto {
   @ApiProperty({
     description: "Reading source identifier for vehicle inspection events.",
     enum: ["vehicle"],
@@ -106,7 +124,7 @@ export class VehicleReadingRequestDto {
   metadata?: Record<string, unknown>;
 }
 
-export class SatelliteReadingRequestDto {
+export class SatelliteReadingRequestDto extends ReadingIdentityDto {
   @ApiProperty({
     description: "Reading source identifier for satellite vegetation indexes.",
     enum: ["satellite"],
